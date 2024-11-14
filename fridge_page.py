@@ -129,7 +129,7 @@ def fridge_page():
 
     # Display total expenses per roommate
     st.write("Total expenses per roommate:")
-    expenses_df = pd.DataFrame(list(st.session_state["expenses"].items()), columns=["Roommate", "Total Expenses (CHF)"])
+    expenses_df = pd.DataFrame(list(st.session_state["expenses"].items()), columns=["Roommate", "Total Expenses (CHF)"]) #Generates a list of tuples and assigns column titles
     st.table(expenses_df)
 
     # Display purchases and consumed items per roommate
@@ -138,7 +138,7 @@ def fridge_page():
         st.write(f"{mate}'s Purchases:")
         purchases_df = pd.DataFrame(st.session_state["purchases"][mate])
         st.table(purchases_df)
-
+        
         st.write(f"{mate}'s Consumptions:")
         consumed_df = pd.DataFrame(st.session_state["consumed"][mate])
         st.table(consumed_df)
