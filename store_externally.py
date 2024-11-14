@@ -165,7 +165,6 @@ def delete_data():
     st.session_state.clear()
         
 
-
 # If the user is logged in, show the main page
 if st.session_state["logged_in"]:
     # Sidebar navigation with buttons (no menu selection here)

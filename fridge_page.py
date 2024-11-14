@@ -63,7 +63,7 @@ def delete_product_from_inventory(food_item, quantity, unit, selected_roommate):
 def add_product_to_inventory(food_item, quantity, unit, price, selected_roommate):
     ensure_roommate_entries()
     purchase_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    if food_item in st.session_state["inventory"]: # Checks if the ingredient is already in the inventory
+    if food_item in st.session_state["inventory"]:  # checks if the food is already in the inventory
         st.session_state["inventory"][food_item]["Quantity"] += quantity
         st.session_state["inventory"][food_item]["Price"] += price
     else:
