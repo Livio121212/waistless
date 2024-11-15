@@ -41,13 +41,6 @@ if "user_ratings_data" not in st.session_state:
 if "label_encoder" not in st.session_state:
     st.session_state["label_encoder"] = LabelEncoder()
 
-# List of extended cuisines
-CUISINE_LIST = [
-    "Italian", "Turkish", "Asian", "Mexican", "American", "Indian", "French", 
-    "Mediterranean", "Middle Eastern", "Greek", "Spanish", "Thai", 
-    "Vietnamese", "Caribbean", "African"
-]
-
 # Initialize Machine Learning Model
 def train_ml_model():
     df = st.session_state["user_ratings_data"]
@@ -72,7 +65,7 @@ def predict_cuisine(user, recipe):
         return predicted_cuisine
     return None
 
-# Recipe suggestion function with extended cuisine types
+# Recipe suggestion function with correct cuisine types
 def get_recipes_from_inventory(selected_ingredients=None):
     ingredients = selected_ingredients if selected_ingredients else list(st.session_state["inventory"].keys())
     if not ingredients:
@@ -96,9 +89,21 @@ def get_recipes_from_inventory(selected_ingredients=None):
         for recipe in recipes:
             missed_ingredients = recipe.get("missedIngredientCount", 0)
             if missed_ingredients <= 2:
-                recipe_link = f"https://spoonacular.com/recipes/{recipe['title'].replace(' ', '-')}-{recipe['id']}"
+                recipe_id = recipe['id']
+                recipe_link = f"https://spoonacular.com/recipes/{recipe['title'].replace(' ', '-')}-{recipe_id}"
                 missed_ingredients_names = [item["name"] for item in recipe.get("missedIngredients", [])]
-                cuisine = random.choice(CUISINE_LIST)  # Select a random cuisine from the extended list
+
+                # Fetch detailed recipe information to get the correct cuisine type
+                info_url = f"https://api.spoonacular.com/recipes/{recipe_id}/information"
+                info_params = {"apiKey": API_KEY}
+                info_response = requests.get(info_url, params=info_params)
+                
+                if info_response.status_code == 200:
+                    info_data = info_response.json()
+                    cuisine = info_data.get("cuisines", ["Unknown"])[0]  # Get the first cuisine or 'Unknown' if not available
+                else:
+                    cuisine = "Unknown"
+
                 recipe_titles.append((recipe['title'], cuisine))
                 recipe_links[recipe['title']] = {
                     "link": recipe_link,
@@ -107,6 +112,7 @@ def get_recipes_from_inventory(selected_ingredients=None):
                 }
                 if len(recipe_titles) >= 3:
                     break
+
         return recipe_titles, recipe_links
     else:
         st.error("Error fetching recipes. Please check your API key.")
