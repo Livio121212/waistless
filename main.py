@@ -11,14 +11,19 @@ from store_externally import register_user, login_user, save_data, load_data, au
 
 
 # Initialization of session state variables
+# Flat related variables
 if "flate_name" not in st.session_state:
     st.session_state["flate_name"] = ""
 if "roommates" not in st.session_state:
     st.session_state["roommates"] = []
 if "setup_finished" not in st.session_state:
     st.session_state["setup_finished"] = False
+
+# Site status: first time setting page
 if "page" not in st.session_state:
     st.session_state["page"] = "settings"
+
+# Inventory and financial data
 if "inventory" not in st.session_state:
     st.session_state["inventory"] = {}
 if "expenses" not in st.session_state:
@@ -27,6 +32,8 @@ if "purchases" not in st.session_state:
     st.session_state["purchases"] = {mate: [] for mate in st.session_state["roommates"]}
 if "consumed" not in st.session_state:
     st.session_state["consumed"] = {mate: [] for mate in st.session_state["roommates"]}
+
+# Recipe related variables
 if "recipe_suggestions" not in st.session_state:
     st.session_state["recipe_suggestions"] = []
 if "selected_recipe" not in st.session_state:
@@ -37,6 +44,7 @@ if "selected_recipe_link" not in st.session_state:
     st.session_state["selected_recipe_link"] = None
 if "cooking_history" not in st.session_state:
     st.session_state["cooking_history"] = []
+# Login-related variables
 if "logged_in" not in st.session_state:
     st.session_state["logged_in"] = False
 if "username" not in st.session_state:
