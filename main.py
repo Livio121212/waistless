@@ -55,8 +55,10 @@ def overview_page():
 def change_page(new_page):
     st.session_state["page"] = new_page
 
-# Sidebar navigation with buttons
+# Display of the main page
 if st.session_state["logged_in"]:
+
+    # Sidebar navigation without account selection
     st.sidebar.title("Navigation")
     if st.sidebar.button("Overview"):
         change_page("overview")
@@ -74,7 +76,7 @@ if st.session_state["logged_in"]:
         st.session_state["data"] = {}
 
 
-# Page display logic for the selected page
+    # Page display logic for the selected page
     if st.session_state["page"] == "overview":
         overview_page()
         auto_save()
@@ -98,6 +100,7 @@ if st.session_state["logged_in"]:
             delete_account()
         auto_save()
 else:
+    # Sidebar with account selection
     st.title("Wasteless")
     st.write("Please log in or register to continue.")
     authentication()
