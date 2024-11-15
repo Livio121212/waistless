@@ -144,7 +144,7 @@ def delete_account():
         if confirm:
             delete_data() 
             st.session_state["logged_in"] = False # Used that we can sign in or sign up again
-            st.rerun()
+
 
 # Function to remove the user from the JSON file
 def delete_data():
