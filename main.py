@@ -44,6 +44,7 @@ if "selected_recipe_link" not in st.session_state:
     st.session_state["selected_recipe_link"] = None
 if "cooking_history" not in st.session_state:
     st.session_state["cooking_history"] = []
+
 # Login-related variables
 if "logged_in" not in st.session_state:
     st.session_state["logged_in"] = False

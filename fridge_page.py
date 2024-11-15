@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd # Library to handle data
 from datetime import datetime
 
-# Initialization of the session status for saving values between interactions
+# Initialization of the session status for saving values between interactions, just for testing
 if "roommates" not in st.session_state:
     st.session_state["roommates"] = ["Livio", "Flurin", "Anderin"] # use for testing code
 if "inventory" not in st.session_state:
