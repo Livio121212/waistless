@@ -53,7 +53,7 @@ if "username" not in st.session_state:
 if "data" not in st.session_state:
     st.session_state["data"] = {}    
 
-# only temporarly: in progress
+# Only temporarly: in progress
 def overview_page():
     title = f"Overview: {st.session_state['flate_name']}" if st.session_state["flate_name"] else "Overview"
     st.title(title)
