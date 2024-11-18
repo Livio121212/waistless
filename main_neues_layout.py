@@ -64,7 +64,7 @@ def overview_page():
 def change_page(new_page):
     st.session_state["page"] = new_page
 
-logo = "/Users/livioreding/Desktop/streamlit/Eco_Wasteless_Logo_Cropped.png"  # Pfad zu deinem Logo-Bild
+logo = "https://raw.githubusercontent.com/Livio121212/waistless/main/Eco_Wasteless_Logo_Cropped.png"  # Pfad zu deinem Logo-Bild
 st.sidebar.image(logo, use_column_width=True)
 
 
