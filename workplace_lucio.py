@@ -1,6 +1,11 @@
 import streamlit as st
 import json
 import os
+from settings_page import setup_flat_name, setup_roommates, settingspage
+from fridge_page import fridge_page
+from barcode_page import barcode_page
+from recipe_page import recipepage
+
 
 # Funktionen für Benutzerverwaltung
 def register_user(username, password):
