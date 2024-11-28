@@ -61,35 +61,54 @@ if "username" not in st.session_state:
 if "data" not in st.session_state:
     st.session_state["data"] = {}
 if "page" not in st.session_state:
-    st.session_state["page"] = "login"  # Default page set to login
+    st.session_state["page"] = "login"  # Default page
 
 # Handle Logout: Redirect to Login
 if "logout_triggered" in st.session_state and st.session_state["logout_triggered"]:
-    st.session_state.clear()  # Clear session state completely
+    st.session_state.clear()  # Clear all session states
     st.session_state["logged_in"] = False
     st.session_state["page"] = "login"  # Redirect to login page
-    st.experimental_set_query_params(page="login")
     del st.session_state["logout_triggered"]  # Remove the trigger
     st.experimental_rerun()  # Force reload the app
 
-# Sidebar navigation and user handling
+# Sidebar logic based on login status
 if st.session_state["logged_in"]:
-    # Sidebar for navigation
+    # Sidebar for navigation if user is logged in
     st.sidebar.title("Navigation")
     menu = st.sidebar.radio("Menu", ["Overview", "Fridge", "Scan", "Recipes", "Settings"])
 
     # Logout button
-    if st.sidebar.button("Log Out"):
+    if st.sidebar.button("Log Out", type="primary"):
+        save_data(st.session_state["username"], st.session_state["data"])  # Save data before logout
         st.session_state["logout_triggered"] = True  # Set a trigger for logout
 
+    # Handle navigation for logged-in users
+    if menu == "Overview":
+        st.title("Overview")
+        st.write("Welcome to the overview page.")
+    elif menu == "Fridge":
+        fridge_page()
+    elif menu == "Scan":
+        barcode_page()
+    elif menu == "Recipes":
+        recipepage()
+    elif menu == "Settings":
+        if not st.session_state["setup_finished"]:
+            if st.session_state["flate_name"] == "":
+                setup_flat_name()
+            else:
+                setup_roommates()
+        else:
+            settingspage()
+
 else:
+    # Sidebar for login and register options if user is not logged in
+    st.sidebar.title("Menu")
     menu = st.sidebar.radio("Menu", ["Log In", "Register"])
 
-# Login/Register logic
-if st.session_state["page"] == "login" and not st.session_state["logged_in"]:
-    st.title("Wasteless")
-
+    # Login/Register logic
     if menu == "Log In":
+        st.title("Wasteless - Log In")
         username = st.text_input("Username")
         password = st.text_input("Password", type="password")
         if st.button("Log In"):
@@ -98,9 +117,10 @@ if st.session_state["page"] == "login" and not st.session_state["logged_in"]:
                 st.session_state["logged_in"] = True
                 st.session_state["username"] = username
                 st.session_state["data"] = load_data(username)
-                st.session_state["page"] = "main"  # Redirect to main page
-                st.experimental_set_query_params(page="main")
+                st.session_state["page"] = "main"  # Redirect to main dashboard
+                st.experimental_rerun()
     elif menu == "Register":
+        st.title("Wasteless - Register")
         username = st.text_input("Username")
         password = st.text_input("Password", type="password")
         if st.button("Register"):
@@ -132,29 +152,3 @@ if "cooking_history" not in st.session_state:
     st.session_state["cooking_history"] = []
 if "recipe_links" not in st.session_state:
     st.session_state["recipe_links"] = {}
-
-# Main page handling for logged-in users
-if st.session_state["logged_in"]:
-    st.title("Main Dashboard")
-    st.sidebar.title("Navigation")
-
-    # Navigation based on the menu
-    if menu == "Overview":
-        st.title("Overview")
-        st.write("Welcome to the overview page.")
-    elif menu == "Fridge":
-        fridge_page()
-    elif menu == "Scan":
-        barcode_page()
-    elif menu == "Recipes":
-        recipepage()
-    elif menu == "Settings":
-        if not st.session_state["setup_finished"]:
-            if st.session_state["flate_name"] == "":
-                setup_flat_name()
-            else:
-                setup_roommates()
-        else:
-            settingspage()
-else:
-    st.write("Please log in or register to continue.")
