@@ -1,10 +1,14 @@
 import streamlit as st
 import json
 import os
+import pandas as pd
+from PIL import Image
+from datetime import datetime
 from settings_page import setup_flat_name, setup_roommates, settingspage
 from fridge_page import fridge_page
 from barcode_page import barcode_page
 from recipe_page import recipepage
+
 
 # Function to register a user
 def register_user(username, password):
@@ -60,13 +64,6 @@ if "username" not in st.session_state:
     st.session_state["username"] = None
 if "data" not in st.session_state:
     st.session_state["data"] = {}
-if "logout_triggered" not in st.session_state:
-    st.session_state["logout_triggered"] = False
-
-# Redirect to login page if logout is triggered
-if st.session_state["logout_triggered"]:
-    st.session_state.clear()
-    st.experimental_rerun()
 
 menu = st.sidebar.selectbox("Menu", ["Log In", "Register"])
 
@@ -80,8 +77,8 @@ if st.session_state["logged_in"] and menu == "Register":
     st.session_state["logged_in"] = False
     st.session_state["username"] = None
     st.session_state["data"] = {}
-    st.session_state["logout_triggered"] = True  # Trigger the logout logic
-    st.experimental_rerun()
+    st.experimental_set_query_params()  # Simulate a rerun by setting query params
+    st.stop()  # End execution to reload the app
 
 if not st.session_state["logged_in"]:
     username = st.sidebar.text_input("Username")
@@ -101,7 +98,6 @@ if not st.session_state["logged_in"]:
                 st.session_state["data"] = load_data(username)
                 # Load WG data into the session state
                 st.session_state.update(st.session_state["data"])
-                st.experimental_rerun()
 
 # Ensure all session state variables are initialized
 if "flate_name" not in st.session_state:
@@ -151,8 +147,8 @@ if st.session_state["logged_in"]:
         st.session_state["logged_in"] = False
         st.session_state["username"] = None
         st.session_state["data"] = {}
-        st.session_state["logout_triggered"] = True  # Trigger the logout logic
-        st.experimental_rerun()
+        st.experimental_set_query_params()  # Simulate a rerun by setting query params
+        st.stop()  # End execution to reload the app
 
     # Function to automatically save WG data
     def auto_save():
