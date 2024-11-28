@@ -61,9 +61,8 @@ if st.session_state["logged_in"]:
         # Daten speichern und Session zurücksetzen
         if st.session_state["username"]:
             save_data(st.session_state["username"], st.session_state.get("data", {}))
-        st.session_state.clear()
-        st.session_state["logged_in"] = False
-        st.session_state["page"] = "login"
+        st.session_state.clear()  # Alle Session-Daten löschen
+        st.experimental_rerun()  # Sofortige Neuladung der Seite
 
 # Login- und Registrierungsseite
 if not st.session_state["logged_in"]:
@@ -81,6 +80,7 @@ if not st.session_state["logged_in"]:
                 st.session_state["username"] = username
                 st.session_state["data"] = load_data(username)
                 st.session_state["page"] = "overview"
+                st.experimental_rerun()  # Nach Login direkt auf die Hauptseite
             else:
                 st.error("Incorrect username or password!")
     elif menu == "Register":
