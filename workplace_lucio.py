@@ -1,10 +1,14 @@
 import streamlit as st
 import json
 import os
+import pandas as pd
+from PIL import Image
+from datetime import datetime
 from settings_page import setup_flat_name, setup_roommates, settingspage
 from fridge_page import fridge_page
 from barcode_page import barcode_page
 from recipe_page import recipepage
+
 
 # Function to register a user
 def register_user(username, password):
@@ -60,80 +64,50 @@ if "username" not in st.session_state:
     st.session_state["username"] = None
 if "data" not in st.session_state:
     st.session_state["data"] = {}
-if "page" not in st.session_state:
-    st.session_state["page"] = "login"  # Default page
 
-# Handle Logout: Redirect to Login
-if "logout_triggered" in st.session_state and st.session_state["logout_triggered"]:
-    st.session_state.clear()  # Clear all session states
+menu = st.sidebar.selectbox("Menu", ["Log In", "Register"])
+
+# Display the title only if the user is not logged in
+if not st.session_state["logged_in"]:
+    st.title("Wasteless")
+
+# Check if user is logged in and clicks "Register"
+if st.session_state["logged_in"] and menu == "Register":
+    # Log out and return to the login page
     st.session_state["logged_in"] = False
-    st.session_state["page"] = "login"  # Redirect to login page
-    del st.session_state["logout_triggered"]  # Remove the trigger
-    st.experimental_rerun()  # Force reload the app
+    st.session_state["username"] = None
+    st.session_state["data"] = {}
+    st.experimental_set_query_params()  # Simulate a rerun by setting query params
+    st.stop()  # End execution to reload the app
 
-# Sidebar logic based on login status
-if st.session_state["logged_in"]:
-    # Sidebar for navigation if user is logged in
-    st.sidebar.title("Navigation")
-    menu = st.sidebar.radio("Menu", ["Overview", "Fridge", "Scan", "Recipes", "Settings"])
+if not st.session_state["logged_in"]:
+    username = st.sidebar.text_input("Username")
+    password = st.sidebar.text_input("Password", type="password")
 
-    # Logout button
-    if st.sidebar.button("Log Out", type="primary"):
-        save_data(st.session_state["username"], st.session_state["data"])  # Save data before logout
-        st.session_state["logout_triggered"] = True  # Set a trigger for logout
-
-    # Handle navigation for logged-in users
-    if menu == "Overview":
-        st.title("Overview")
-        st.write("Welcome to the overview page.")
-    elif menu == "Fridge":
-        fridge_page()
-    elif menu == "Scan":
-        barcode_page()
-    elif menu == "Recipes":
-        recipepage()
-    elif menu == "Settings":
-        if not st.session_state["setup_finished"]:
-            if st.session_state["flate_name"] == "":
-                setup_flat_name()
-            else:
-                setup_roommates()
-        else:
-            settingspage()
-
-else:
-    # Sidebar for login and register options if user is not logged in
-    st.sidebar.title("Menu")
-    menu = st.sidebar.radio("Menu", ["Log In", "Register"])
-
-    # Login/Register logic
-    if menu == "Log In":
-        st.title("Wasteless - Log In")
-        username = st.text_input("Username")
-        password = st.text_input("Password", type="password")
-        if st.button("Log In"):
+    if menu == "Register":
+        if st.sidebar.button("Register"):
+            if register_user(username, password):
+                st.success("Successfully registered! Please log in.")
+    elif menu == "Log In":
+        if st.sidebar.button("Log In"):
             if login_user(username, password):
                 st.success(f"Welcome, {username}!")
                 st.session_state["logged_in"] = True
                 st.session_state["username"] = username
+                # Load WG data
                 st.session_state["data"] = load_data(username)
-                st.session_state["page"] = "main"  # Redirect to main dashboard
-                st.experimental_rerun()
-    elif menu == "Register":
-        st.title("Wasteless - Register")
-        username = st.text_input("Username")
-        password = st.text_input("Password", type="password")
-        if st.button("Register"):
-            if register_user(username, password):
-                st.success("Successfully registered! Please log in.")
+                # Load WG data into the session state
+                st.session_state.update(st.session_state["data"])
 
-# Ensure default session state variables are initialized
+# Ensure all session state variables are initialized
 if "flate_name" not in st.session_state:
     st.session_state["flate_name"] = ""
 if "roommates" not in st.session_state:
     st.session_state["roommates"] = []
 if "setup_finished" not in st.session_state:
     st.session_state["setup_finished"] = False
+if "page" not in st.session_state:
+    st.session_state["page"] = "settings"
 if "inventory" not in st.session_state:
     st.session_state["inventory"] = {}
 if "expenses" not in st.session_state:
@@ -152,3 +126,70 @@ if "cooking_history" not in st.session_state:
     st.session_state["cooking_history"] = []
 if "recipe_links" not in st.session_state:
     st.session_state["recipe_links"] = {}
+
+# If the user is logged in, show the main page
+if st.session_state["logged_in"]:
+    # Sidebar navigation with buttons
+    st.sidebar.title("Navigation")
+    if st.sidebar.button("Overview"):
+        st.session_state["page"] = "overview"
+    if st.sidebar.button("Fridge"):
+        st.session_state["page"] = "fridge"
+    if st.sidebar.button("Scan"):
+        st.session_state["page"] = "scan"
+    if st.sidebar.button("Recipes"):
+        st.session_state["page"] = "recipes"
+    if st.sidebar.button("Settings"):
+        st.session_state["page"] = "settings"
+
+    # Make the "Log Out" button red
+    if st.sidebar.button("Log Out", type="primary"):
+        st.session_state["logged_in"] = False
+        st.session_state["username"] = None
+        st.session_state["data"] = {}
+        st.experimental_set_query_params()  # Simulate a rerun by setting query params
+        st.stop()  # End execution to reload the app
+
+    # Function to automatically save WG data
+    def auto_save():
+        st.session_state["data"] = {
+            "flate_name": st.session_state.get("flate_name", ""),
+            "roommates": st.session_state.get("roommates", []),
+            "setup_finished": st.session_state.get("setup_finished", False),
+            "inventory": st.session_state.get("inventory", {}),
+            "expenses": st.session_state.get("expenses", {}),
+            "purchases": st.session_state.get("purchases", {}),
+            "consumed": st.session_state.get("consumed", {}),
+            "recipe_suggestions": st.session_state.get("recipe_suggestions", []),
+            "selected_recipe": st.session_state.get("selected_recipe", None),
+            "selected_recipe_link": st.session_state.get("selected_recipe_link", None),
+            "cooking_history": st.session_state.get("cooking_history", []),
+            "recipe_links": st.session_state.get("recipe_links", {})
+        }
+        save_data(st.session_state["username"], st.session_state["data"])
+
+    # Page display logic for the selected page
+    if st.session_state["page"] == "overview":
+        st.title(f"Overview: {st.session_state['flate_name']}")
+        st.write("Welcome to your WG overview page!")
+        auto_save()  # Automatically save data
+    elif st.session_state["page"] == "fridge":
+        fridge_page()
+        auto_save()  # Automatically save data
+    elif st.session_state["page"] == "scan":
+        barcode_page()
+        auto_save()  # Automatically save data
+    elif st.session_state["page"] == "recipes":
+        recipepage()
+        auto_save()  # Automatically save data
+    elif st.session_state["page"] == "settings":
+        if not st.session_state["setup_finished"]:
+            if st.session_state["flate_name"] == "":
+                setup_flat_name()
+            else:
+                setup_roommates()
+        else:
+            settingspage()
+        auto_save()  # Automatically save data
+else:
+    st.write("Please log in or register to continue.")
