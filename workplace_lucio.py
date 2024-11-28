@@ -60,23 +60,33 @@ if "username" not in st.session_state:
     st.session_state["username"] = None
 if "data" not in st.session_state:
     st.session_state["data"] = {}
+if "page" not in st.session_state:
+    st.session_state["page"] = "login"  # Default page set to login
+
+# Handle Logout: Redirect to Login
+if "logout_triggered" in st.session_state and st.session_state["logout_triggered"]:
+    st.session_state.clear()  # Clear session state completely
+    st.session_state["logged_in"] = False
+    st.session_state["page"] = "login"  # Redirect to login page
+    st.experimental_set_query_params(page="login")
+    del st.session_state["logout_triggered"]  # Remove the trigger
+    st.experimental_rerun()  # Force reload the app
 
 # Sidebar navigation and user handling
 if st.session_state["logged_in"]:
     # Sidebar for navigation
-    menu = st.sidebar.selectbox("Menu", ["Overview", "Fridge", "Scan", "Recipes", "Settings"])
+    st.sidebar.title("Navigation")
+    menu = st.sidebar.radio("Menu", ["Overview", "Fridge", "Scan", "Recipes", "Settings"])
 
     # Logout button
-    if st.sidebar.button("Log Out", type="primary"):
-        st.session_state.clear()  # Clear all session states
-        st.session_state["logged_in"] = False  # Explicitly set logged_in to False
-        st.experimental_set_query_params(page="login")  # Ensure URL state reflects logout
-        st.session_state["force_rerun"] = True  # Trigger rerun
+    if st.sidebar.button("Log Out"):
+        st.session_state["logout_triggered"] = True  # Set a trigger for logout
+
 else:
-    menu = st.sidebar.selectbox("Menu", ["Log In", "Register"])
+    menu = st.sidebar.radio("Menu", ["Log In", "Register"])
 
 # Login/Register logic
-if not st.session_state["logged_in"]:
+if st.session_state["page"] == "login" and not st.session_state["logged_in"]:
     st.title("Wasteless")
 
     if menu == "Log In":
@@ -88,7 +98,8 @@ if not st.session_state["logged_in"]:
                 st.session_state["logged_in"] = True
                 st.session_state["username"] = username
                 st.session_state["data"] = load_data(username)
-                st.experimental_set_query_params(page="main")  # Set URL to indicate logged-in state
+                st.session_state["page"] = "main"  # Redirect to main page
+                st.experimental_set_query_params(page="main")
     elif menu == "Register":
         username = st.text_input("Username")
         password = st.text_input("Password", type="password")
@@ -103,8 +114,6 @@ if "roommates" not in st.session_state:
     st.session_state["roommates"] = []
 if "setup_finished" not in st.session_state:
     st.session_state["setup_finished"] = False
-if "page" not in st.session_state:
-    st.session_state["page"] = "settings"
 if "inventory" not in st.session_state:
     st.session_state["inventory"] = {}
 if "expenses" not in st.session_state:
@@ -126,29 +135,20 @@ if "recipe_links" not in st.session_state:
 
 # Main page handling for logged-in users
 if st.session_state["logged_in"]:
+    st.title("Main Dashboard")
     st.sidebar.title("Navigation")
-    if st.sidebar.button("Overview"):
-        st.session_state["page"] = "overview"
-    if st.sidebar.button("Fridge"):
-        st.session_state["page"] = "fridge"
-    if st.sidebar.button("Scan"):
-        st.session_state["page"] = "scan"
-    if st.sidebar.button("Recipes"):
-        st.session_state["page"] = "recipes"
-    if st.sidebar.button("Settings"):
-        st.session_state["page"] = "settings"
 
-    # Display the selected page
-    if st.session_state["page"] == "overview":
-        st.title(f"Overview: {st.session_state['flate_name']}")
-        st.write("Welcome to your WG overview page!")
-    elif st.session_state["page"] == "fridge":
+    # Navigation based on the menu
+    if menu == "Overview":
+        st.title("Overview")
+        st.write("Welcome to the overview page.")
+    elif menu == "Fridge":
         fridge_page()
-    elif st.session_state["page"] == "scan":
+    elif menu == "Scan":
         barcode_page()
-    elif st.session_state["page"] == "recipes":
+    elif menu == "Recipes":
         recipepage()
-    elif st.session_state["page"] == "settings":
+    elif menu == "Settings":
         if not st.session_state["setup_finished"]:
             if st.session_state["flate_name"] == "":
                 setup_flat_name()
