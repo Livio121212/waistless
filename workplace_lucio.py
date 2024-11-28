@@ -74,7 +74,7 @@ if st.session_state["logged_in"] and menu == "Register":
     st.session_state["username"] = None
     st.session_state["data"] = {}
     st.experimental_set_query_params(page="login")
-    st.stop()
+    st.experimental_rerun()  # Force page reload
 
 if not st.session_state["logged_in"]:
     username = st.sidebar.text_input("Username")
@@ -94,6 +94,7 @@ if not st.session_state["logged_in"]:
                 st.session_state["data"] = load_data(username)
                 # Load WG data into the session state
                 st.session_state.update(st.session_state["data"])
+                st.experimental_rerun()  # Reload the page to reflect the login state
 
 # Ensure all session state variables are initialized
 if "flate_name" not in st.session_state:
@@ -143,8 +144,8 @@ if st.session_state["logged_in"]:
         st.session_state["logged_in"] = False
         st.session_state["username"] = None
         st.session_state["data"] = {}
-        st.experimental_set_query_params(page="login")  # Setze eine Query-Variable
-        st.stop()  # Stoppe den aktuellen Streamlit-Lauf
+        st.experimental_set_query_params(page="login")  # Set a query parameter to reset the state
+        st.experimental_rerun()  # Force reload to reset to login page
 
     # Function to automatically save WG data
     def auto_save():
@@ -160,7 +161,7 @@ if st.session_state["logged_in"]:
             "selected_recipe": st.session_state.get("selected_recipe", None),
             "selected_recipe_link": st.session_state.get("selected_recipe_link", None),
             "cooking_history": st.session_state.get("cooking_history", []),
-            "recipe_links": st.session_state.get("recipe_links", {})
+            "recipe_links": st.session_state.get("recipe_links", {}),
         }
         save_data(st.session_state["username"], st.session_state["data"])
 
