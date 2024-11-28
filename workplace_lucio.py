@@ -6,7 +6,6 @@ from fridge_page import fridge_page
 from barcode_page import barcode_page
 from recipe_page import recipepage
 
-
 # Function to register a user
 def register_user(username, password):
     if os.path.exists("users.json"):
@@ -75,7 +74,7 @@ if st.session_state["logged_in"] and menu == "Register":
     st.session_state["username"] = None
     st.session_state["data"] = {}
     st.experimental_set_query_params(page="login")
-    st.experimental_rerun()
+    st.stop()
 
 if not st.session_state["logged_in"]:
     username = st.sidebar.text_input("Username")
@@ -144,8 +143,8 @@ if st.session_state["logged_in"]:
         st.session_state["logged_in"] = False
         st.session_state["username"] = None
         st.session_state["data"] = {}
-        st.experimental_set_query_params(page="login")
-        st.experimental_rerun()
+        st.experimental_set_query_params(page="login")  # Setze eine Query-Variable
+        st.stop()  # Stoppe den aktuellen Streamlit-Lauf
 
     # Function to automatically save WG data
     def auto_save():
