@@ -67,14 +67,15 @@ menu = st.sidebar.selectbox("Menu", ["Log In", "Register"])
 if not st.session_state["logged_in"]:
     st.title("Wasteless")
 
-# Check if user is logged in and clicks "Register"
+# Handle user registration and logout logic
 if st.session_state["logged_in"] and menu == "Register":
     # Log out and return to the login page
     st.session_state["logged_in"] = False
     st.session_state["username"] = None
     st.session_state["data"] = {}
     st.experimental_set_query_params(page="login")
-    st.experimental_rerun()  # Force page reload
+    st.write("Logged out! Please log in again.")
+    st.stop()
 
 if not st.session_state["logged_in"]:
     username = st.sidebar.text_input("Username")
@@ -92,9 +93,8 @@ if not st.session_state["logged_in"]:
                 st.session_state["username"] = username
                 # Load WG data
                 st.session_state["data"] = load_data(username)
-                # Load WG data into the session state
                 st.session_state.update(st.session_state["data"])
-                st.experimental_rerun()  # Reload the page to reflect the login state
+                st.experimental_set_query_params(page="main")
 
 # Ensure all session state variables are initialized
 if "flate_name" not in st.session_state:
@@ -145,7 +145,8 @@ if st.session_state["logged_in"]:
         st.session_state["username"] = None
         st.session_state["data"] = {}
         st.experimental_set_query_params(page="login")  # Set a query parameter to reset the state
-        st.experimental_rerun()  # Force reload to reset to login page
+        st.write("Logged out successfully. Reloading...")
+        st.stop()
 
     # Function to automatically save WG data
     def auto_save():
