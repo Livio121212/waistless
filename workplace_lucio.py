@@ -10,126 +10,128 @@ from barcode_page import barcode_page
 from recipe_page import recipepage
 
 
-# Function to register a user
+#register a user
 def register_user(username, password):
-    if os.path.exists("users.json"):
-        with open("users.json", "r") as file:
-            users = json.load(file)
+    if os.path.exists("users.json"): #check if data file already exists
+        with open("users.json", "r") as file: #open dataset if it already exists, "r" means it's only in "read mode"
+            users = json.load(file) #load file an content into users
     else:
-        users = {}
+        users = {} #if user doen't exist create an empty dictionary
 
-    if username in users:
-        st.error("Username already exists!")
-        return False
+    if username in users: #check if username already exists
+        st.error("Username already exists!") #show an error message if user already exists
+        return False #stop the function
     else:
-        users[username] = password
-        with open("users.json", "w") as file:
-            json.dump(users, file)
-        return True
+        users[username] = password #if username doesn't exist, add a new dictionary
+        with open("users.json", "w") as file: #"w" -> overwrite with new data
+            json.dump(users, file) #save the dictionary into the file ->
+        return True #signal successful registration
 
-# Function to log in a user
+#user login
 def login_user(username, password):
-    if os.path.exists("users.json"):
-        with open("users.json", "r") as file:
-            users = json.load(file)
+    if os.path.exists("users.json"): #check if file exists
+        with open("users.json", "r") as file: #if not open in read mode
+            users = json.load(file) #load data into dic. users
     else:
-        st.error("No users found! Please register first.")
-        return False
+        st.error("No users found! Please register first.") #if user not found instrution to register
+        return False #stop function
 
-    if username in users and users[username] == password:
+    if username in users and users[username] == password:#check username already exists in dic. and if password matches the one that was saved in the json file
         return True
     else:
-        st.error("Incorrect username or password!")
-        return False
+        st.error("Incorrect username or password!") #error message if either username doesn't exist or password incorrect
+        return False #stop funtion
 
-# Function to save WG data
+# Save Wg data like roommates,fridge inventory, etc
 def save_data(username, data):
-    data_file = f"{username}_data.json"
-    with open(data_file, "w") as file:
-        json.dump(data, file)
+    data_file = f"{username}_data.json" #create file based on the user
+    with open(data_file, "w") as file: #open file in "write mode (w)", so that existing content can be replaced
+        json.dump(data, file) #turn data into json format
 
-# Function to load WG data
-def load_data(username):
-    data_file = f"{username}_data.json"
+# load WG data when user logs in
+def load_data(username): #load data that was saved
+    data_file = f"{username}_data.json" # look for file named after username
     if os.path.exists(data_file):
-        with open(data_file, "r") as file:
+        with open(data_file, "r") as file: #if data exists it is loaded and returned into python dic.
             return json.load(file)
     else:
-        return {}
+        return {} #return empty dic. -> no saved data
 
-# Initialize session state
-if "logged_in" not in st.session_state:
+# Initialize session state to store data temporarly while using waistless, otherwise data would reset
+if "logged_in" not in st.session_state: #CHeck if logged in
     st.session_state["logged_in"] = False
-if "username" not in st.session_state:
+if "username" not in st.session_state:#store name of logged in user
     st.session_state["username"] = None
-if "data" not in st.session_state:
+if "data" not in st.session_state:#store data like inventory, expenses, etc
     st.session_state["data"] = {}
 
-menu = st.sidebar.selectbox("Menu", ["Log In", "Register"])
+menu = st.sidebar.selectbox("Menu", ["Log In", "Register"]) #show dropdown menu for log in and registration
 
-# Display the title only if the user is not logged in
+#show a title when user is not logged in
 if not st.session_state["logged_in"]:
     st.title("Wasteless")
 
-# Check if user is logged in and clicks "Register"
+#Check if a user clicks on "regiser" while logged in
 if st.session_state["logged_in"] and menu == "Register":
-    # Log out and return to the login page
-    st.session_state["logged_in"] = False
-    st.session_state["username"] = None
-    st.session_state["data"] = {}
+    #make sure to log out first
+    st.session_state["logged_in"] = False #no longer logged in
+    st.session_state["username"] = None #clear logged in name
+    st.session_state["data"] = {} #clear user data
     st.experimental_set_query_params()  # Simulate a rerun by setting query params
-    st.stop()  # End execution to reload the app
+    st.stop()  #stop execution
 
-if not st.session_state["logged_in"]:
-    username = st.sidebar.text_input("Username")
-    password = st.sidebar.text_input("Password", type="password")
-
+#if user is not logged
+if not st.session_state["logged_in"]: #code runs when user is not logged in
+    username = st.sidebar.text_input("Username") #display field for input
+    password = st.sidebar.text_input("Password", type="password") #show password as dots (type password)
+    
+    #registration
     if menu == "Register":
         if st.sidebar.button("Register"):
-            if register_user(username, password):
+            if register_user(username, password):#calls the defined funtion for registration
                 st.success("Successfully registered! Please log in.")
-    elif menu == "Log In":
+    elif menu == "Log In":#runs if user clicks on login button
         if st.sidebar.button("Log In"):
-            if login_user(username, password):
-                st.success(f"Welcome, {username}!")
-                st.session_state["logged_in"] = True
-                st.session_state["username"] = username
-                # Load WG data
+            if login_user(username, password):#call the defined login function
+                st.success(f"Welcome, {username}!") #welcome user if succesful
+                st.session_state["logged_in"] = True #mark user as logged in
+                st.session_state["username"] = username #save name
+                #load WG data from json and assign to session state
                 st.session_state["data"] = load_data(username)
-                # Load WG data into the session state
+                #make data avilable as separat keys -> helps to simplify the code and makes data available throughput the app
                 st.session_state.update(st.session_state["data"])
 
-# Ensure all session state variables are initialized
-if "flate_name" not in st.session_state:
+#initialize all session state variables
+if "flate_name" not in st.session_state: #store name of flat
     st.session_state["flate_name"] = ""
-if "roommates" not in st.session_state:
+if "roommates" not in st.session_state: #store list of roomates
     st.session_state["roommates"] = []
-if "setup_finished" not in st.session_state:
+if "setup_finished" not in st.session_state:#track if setup of flat is complete
     st.session_state["setup_finished"] = False
 if "page" not in st.session_state:
-    st.session_state["page"] = "settings"
-if "inventory" not in st.session_state:
+    st.session_state["page"] = "settings" #app starts on settings page so that roomates can be registered
+if "inventory" not in st.session_state:# track items in fridge
     st.session_state["inventory"] = {}
-if "expenses" not in st.session_state:
+if "expenses" not in st.session_state:#track expenses
     st.session_state["expenses"] = {}
-if "purchases" not in st.session_state:
+if "purchases" not in st.session_state: #track individual purchases
     st.session_state["purchases"] = {}
-if "consumed" not in st.session_state:
+if "consumed" not in st.session_state: #track consumed items
     st.session_state["consumed"] = {}
-if "recipe_suggestions" not in st.session_state:
+if "recipe_suggestions" not in st.session_state: #track a list
     st.session_state["recipe_suggestions"] = []
-if "selected_recipe" not in st.session_state:
+if "selected_recipe" not in st.session_state: #track currently selected recipe
     st.session_state["selected_recipe"] = None
-if "selected_recipe_link" not in st.session_state:
+if "selected_recipe_link" not in st.session_state:#store link for currently selected recipe
     st.session_state["selected_recipe_link"] = None
-if "cooking_history" not in st.session_state:
+if "cooking_history" not in st.session_state: #keep record of cooked meals
     st.session_state["cooking_history"] = []
-if "recipe_links" not in st.session_state:
+if "recipe_links" not in st.session_state:#track all recipe names and their links
     st.session_state["recipe_links"] = {}
 
-# If the user is logged in, show the main page
+#show main page if user is logged in
 if st.session_state["logged_in"]:
-    # Sidebar navigation with buttons
+    #add clickable sidebar
     st.sidebar.title("Navigation")
     if st.sidebar.button("Overview"):
         st.session_state["page"] = "overview"
@@ -142,20 +144,20 @@ if st.session_state["logged_in"]:
     if st.sidebar.button("Settings"):
         st.session_state["page"] = "settings"
 
-    # Make the "Log Out" button red
-    if st.sidebar.button("Log Out", type="primary"):
-        st.session_state["logged_in"] = False
-        st.session_state["username"] = None
-        st.session_state["data"] = {}
-        st.write("Please reload the page")  # Display the message after logout
-        st.experimental_set_query_params()  # Simulate a rerun by setting query params
-        st.stop()  # End execution to reload the app
+    #make logout button red
+    if st.sidebar.button("Log Out", type="primary"):#add logout button -> "primary" so that it is more visible
+        st.session_state["logged_in"] = False #logout of user
+        st.session_state["username"] = None #clear name
+        st.session_state["data"] = {} #clear data
+        st.write("Please reload the page")  #display after logout
+        st.experimental_set_query_params()  #page refresh by resetting parameters
+        st.stop()  #stop execution, prevent script from running
 
-    # Function to automatically save WG data
+    #function makes sure to save data automatically
     def auto_save():
-        st.session_state["data"] = {
-            "flate_name": st.session_state.get("flate_name", ""),
-            "roommates": st.session_state.get("roommates", []),
+        st.session_state["data"] = { #collect all relevant variables in dic. and store in st.session_state
+            "flate_name": st.session_state.get("flate_name", ""), #check if key exist in session state, if so retrieve value. 
+            "roommates": st.session_state.get("roommates", []), 
             "setup_finished": st.session_state.get("setup_finished", False),
             "inventory": st.session_state.get("inventory", {}),
             "expenses": st.session_state.get("expenses", {}),
@@ -167,30 +169,30 @@ if st.session_state["logged_in"]:
             "cooking_history": st.session_state.get("cooking_history", []),
             "recipe_links": st.session_state.get("recipe_links", {})
         }
-        save_data(st.session_state["username"], st.session_state["data"])
+        save_data(st.session_state["username"], st.session_state["data"]) #save data in jsonfile
 
-    # Page display logic for the selected page
-    if st.session_state["page"] == "overview":
-        st.title(f"Overview: {st.session_state['flate_name']}")
+    #page logic
+    if st.session_state["page"] == "overview":#checks which page the user is looling at
+        st.title(f"Overview: {st.session_state['flate_name']}") #display title form overview page with flat name
         st.write("Welcome to your WG overview page!")
-        auto_save()  # Automatically save data
+        auto_save()  #auto saving
     elif st.session_state["page"] == "fridge":
         fridge_page()
-        auto_save()  # Automatically save data
+        auto_save()  #auto saving
     elif st.session_state["page"] == "scan":
         barcode_page()
-        auto_save()  # Automatically save data
+        auto_save()  #auto saving
     elif st.session_state["page"] == "recipes":
         recipepage()
-        auto_save()  # Automatically save data
-    elif st.session_state["page"] == "settings":
+        auto_save()  #auto save
+    elif st.session_state["page"] == "settings": #check if flatname is empty
         if not st.session_state["setup_finished"]:
-            if st.session_state["flate_name"] == "":
+            if st.session_state["flate_name"] == "": #guide user through setup
                 setup_flat_name()
             else:
-                setup_roommates()
+                setup_roommates()#once flatname is added guide user trough setup of roommates
         else:
-            settingspage()
-        auto_save()  # Automatically save data
+            settingspage() #if setup finshed display setting page
+        auto_save()  #auto saving
 else:
-    st.write("Please log in or register to continue.")
+    st.write("Please log in or register to continue.") #is displayed if user in not registered/logged in
