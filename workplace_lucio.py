@@ -147,6 +147,7 @@ if st.session_state["logged_in"]:
         st.session_state["logged_in"] = False
         st.session_state["username"] = None
         st.session_state["data"] = {}
+        st.write("Please reload the page")  # Display the message after logout
         st.experimental_set_query_params()  # Simulate a rerun by setting query params
         st.stop()  # End execution to reload the app
 
