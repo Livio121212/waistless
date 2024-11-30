@@ -28,6 +28,8 @@ def initialize_session_state():
             "Spicy": 3, "Sweet": 3, "Salty": 3,
             "Sour": 3, "Bitter": 3, "Umami": 3
         }
+    if "selected_recipe" not in st.session_state:
+        st.session_state["selected_recipe"] = None
 
 def get_recipes_from_inventory():
     """Fetch recipes based on available ingredients"""
@@ -36,14 +38,14 @@ def get_recipes_from_inventory():
         st.info("Add some ingredients to your inventory to get recipe recommendations!")
         return [], {}
 
-    params = {
-        "ingredients": ",".join(ingredients),
-        "number": 10,
-        "ranking": 2,
-        "apiKey": API_KEY
-    }
-
     try:
+        params = {
+            "ingredients": ",".join(ingredients),
+            "number": 10,
+            "ranking": 2,
+            "apiKey": API_KEY
+        }
+
         response = requests.get(SPOONACULAR_URL, params=params)
         response.raise_for_status()
         recipes = response.json()
@@ -109,7 +111,6 @@ def train_model():
 
 def recipe_page():
     """Main recipe page function"""
-    # Initialize all session state variables first
     initialize_session_state()
     
     st.title("Smart Recipe Recommendations")
@@ -129,46 +130,43 @@ def recipe_page():
     if recipe_titles:
         st.subheader("Recipe Recommendations")
         
-        # Train model if enough ratings
-        if len(st.session_state["user_ratings"]) >= 2:
-            st.session_state["ml_model"] = train_model()
-            
-            if st.session_state["ml_model"]:
-                for title in recipe_titles[:3]:
-                    recipe_data = st.session_state["recipe_data"][
-                        st.session_state["recipe_data"]["Recipe"] == title
-                    ]
-                    if len(recipe_data) > 0:
-                        st.write(f"**{title}**")
-                        st.write(f"[View Recipe]({recipe_links[title]})")
-        else:
-            selected_recipe = np.random.choice(recipe_titles)
-            st.write(f"**{selected_recipe}**")
-            st.write(f"[View Recipe]({recipe_links[selected_recipe]})")
+        # Display top 3 recommendations with selection buttons
+        displayed_recipes = recipe_titles[:3]
+        cols = st.columns(3)
         
-        # Rating system
-        st.subheader("Rate a Recipe")
-        recipe_to_rate = st.selectbox("Select recipe:", recipe_titles)
-        rating = st.slider("Rating", 1, 5, 3)
+        for idx, (col, title) in enumerate(zip(cols, displayed_recipes), 1):
+            with col:
+                st.write(f"**{title}**")
+                st.write(f"[View Recipe]({recipe_links[title]})")
+                if st.button(f"Select Recipe #{idx}", key=f"select_{idx}"):
+                    st.session_state["selected_recipe"] = title
         
-        if st.button("Submit Rating"):
-            recipe_data = st.session_state["recipe_data"][
-                st.session_state["recipe_data"]["Recipe"] == recipe_to_rate
-            ].iloc[0]
+        # Rating system (only show if a recipe is selected)
+        if st.session_state["selected_recipe"]:
+            st.subheader("Rate Recipe")
+            st.write(f"Rating for: **{st.session_state['selected_recipe']}**")
+            rating = st.slider("Rating", 1, 5, 3)
             
-            new_rating = pd.DataFrame([{
-                "Recipe": recipe_to_rate,
-                "Rating": rating,
-                "Cuisine": recipe_data["Cuisine"]
-            }])
-            
-            st.session_state["user_ratings"] = pd.concat([
-                st.session_state["user_ratings"],
-                new_rating
-            ], ignore_index=True)
-            
-            st.success("Rating submitted successfully!")
-            st.experimental_rerun()
+            if st.button("Submit Rating"):
+                recipe_data = st.session_state["recipe_data"][
+                    st.session_state["recipe_data"]["Recipe"] == st.session_state["selected_recipe"]
+                ].iloc[0]
+                
+                new_rating = pd.DataFrame([{
+                    "Recipe": st.session_state["selected_recipe"],
+                    "Rating": rating,
+                    "Cuisine": recipe_data["Cuisine"]
+                }])
+                
+                st.session_state["user_ratings"] = pd.concat([
+                    st.session_state["user_ratings"],
+                    new_rating
+                ], ignore_index=True)
+                
+                st.success("Rating submitted successfully!")
+                # Clear the selected recipe after rating
+                st.session_state["selected_recipe"] = None
+                st.experimental_rerun()
     
     # Display ratings history
     if not st.session_state["user_ratings"].empty:
