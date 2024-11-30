@@ -6,11 +6,11 @@ from datetime import datetime
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.preprocessing import LabelEncoder
 
-# API Key und URL für Spoonacular
+# API Key and URL for Spoonacular
 API_KEY = 'a79012e4b3e1431e812d8b17bee3a4d7'
 SPOONACULAR_URL = 'https://api.spoonacular.com/recipes/findByIngredients'
 
-# Initialisierung der Session-State-Variablen
+# Initialize session state variables
 if "inventory" not in st.session_state:
     st.session_state["inventory"] = {
         "Tomato": {"Quantity": 5, "Unit": "gram", "Price": 3.0},
@@ -42,21 +42,21 @@ if "user_preferences" not in st.session_state:
         "Umami": 3
     }
 
-# Funktion zur Eingabe von Nutzerpräferenzen
+# Function to input user preferences
 def set_user_preferences():
-    st.subheader("Setzen Sie Ihre Geschmackspräferenzen")
-    st.session_state["user_preferences"]["Spicy"] = st.slider("Wie sehr mögen Sie Schärfe?", 1, 5, 3)
-    st.session_state["user_preferences"]["Sweet"] = st.slider("Wie sehr mögen Sie Süße?", 1, 5, 3)
-    st.session_state["user_preferences"]["Salty"] = st.slider("Wie sehr mögen Sie Salzigkeit?", 1, 5, 3)
-    st.session_state["user_preferences"]["Sour"] = st.slider("Wie sehr mögen Sie Säure?", 1, 5, 3)
-    st.session_state["user_preferences"]["Bitter"] = st.slider("Wie sehr mögen Sie Bitterkeit?", 1, 5, 3)
-    st.session_state["user_preferences"]["Umami"] = st.slider("Wie sehr mögen Sie Umami?", 1, 5, 3)
+    st.subheader("Set your taste preferences")
+    st.session_state["user_preferences"]["Spicy"] = st.slider("How much do you like spiciness?", 1, 5, 3)
+    st.session_state["user_preferences"]["Sweet"] = st.slider("How much do you like sweetness?", 1, 5, 3)
+    st.session_state["user_preferences"]["Salty"] = st.slider("How much do you like saltiness?", 1, 5, 3)
+    st.session_state["user_preferences"]["Sour"] = st.slider("How much do you like sourness?", 1, 5, 3)
+    st.session_state["user_preferences"]["Bitter"] = st.slider("How much do you like bitterness?", 1, 5, 3)
+    st.session_state["user_preferences"]["Umami"] = st.slider("How much do you like umami?", 1, 5, 3)
 
-# Funktion zur Rezeptsuche und Abrufen der Geschmacksprofile
+# Function to search recipes and retrieve taste profiles
 def get_recipes_from_inventory():
     ingredients = list(st.session_state["inventory"].keys())
     if not ingredients:
-        st.warning("Inventar ist leer. Bitte fügen Sie Zutaten hinzu.")
+        st.warning("The inventory is empty. Please add ingredients.")
         return [], {}
     
     params = {
@@ -76,7 +76,7 @@ def get_recipes_from_inventory():
             recipe_id = recipe['id']
             recipe_link = f"https://spoonacular.com/recipes/{recipe['title'].replace(' ', '-')}-{recipe_id}"
 
-            # Abrufen des Geschmacksprofils und der Cuisine
+            # Retrieve taste profile and cuisine
             info_url = f"https://api.spoonacular.com/recipes/{recipe_id}/information"
             info_params = {"apiKey": API_KEY}
             info_response = requests.get(info_url, params=info_params)
@@ -92,7 +92,7 @@ def get_recipes_from_inventory():
                 bitter = taste_profile.get("bitter", 0.0)
                 umami = taste_profile.get("umami", 0.0)
 
-                # Speichern der Geschmacksprofile und der Cuisine
+                # Save taste profiles and cuisine
                 st.session_state["recipe_taste_data"] = pd.concat([
                     st.session_state["recipe_taste_data"],
                     pd.DataFrame([[recipe['title'], spicy, sweet, salty, sour, bitter, umami, cuisine]],
@@ -104,10 +104,10 @@ def get_recipes_from_inventory():
 
         return recipe_titles, recipe_links
     else:
-        st.error("Fehler beim Abrufen der Rezepte. Bitte überprüfen Sie Ihren API-Schlüssel.")
+        st.error("Error fetching recipes. Please check your API key.")
         return [], {}
 
-# Funktion zum Trainieren des Machine Learning-Modells
+# Function to train the machine learning model
 def train_ml_model():
     df = st.session_state["user_ratings_data"].merge(
         st.session_state["recipe_taste_data"], on="Recipe", how="left"
@@ -121,22 +121,21 @@ def train_ml_model():
         model = RandomForestClassifier()
         model.fit(X, y)
         st.session_state["ml_model"] = model
-        st.success("Das Machine Learning-Modell wurde erfolgreich trainiert!")
+        st.success("The machine learning model was successfully trained!")
 
-# Hauptseite der App
+# Main page of the app
 def recipe_page():
-    st.title("Rezeptempfehlungen mit Machine Learning")
+    st.title("Recipe Recommendations with Machine Learning")
     set_user_preferences()
 
-    selected_user = st.selectbox("Wählen Sie den Benutzer aus:", st.session_state["roommates"])
+    selected_user = st.selectbox("Select a user:", st.session_state["roommates"])
     st.session_state["selected_user"] = selected_user
 
     recipe_titles, recipe_links = get_recipes_from_inventory()
     
     if recipe_titles:
-        selected_recipe = st.selectbox("Wählen Sie ein Rezept aus:", recipe_titles)
+        selected_recipe = st.selectbox("Select a recipe:", recipe_titles)
         train_ml_model()
 
-# App starten
+# Start the app
 recipe_page()
-
