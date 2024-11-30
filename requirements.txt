@@ -7,3 +7,4 @@ pyzbar
 requests
 datetime
 plotly.express
+scikit-learn
