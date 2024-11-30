@@ -1,13 +1,33 @@
-import streamlit as st
+mport streamlit as st
 import pandas as pd
 import requests
 import numpy as np
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.preprocessing import StandardScaler
 
-# Spoonacular API configuration
+# API configuration
 API_KEY = 'a79012e4b3e1431e812d8b17bee3a4d7'
 SPOONACULAR_URL = 'https://api.spoonacular.com/recipes/findByIngredients'
+
+def initialize_session_state():
+    """Initialize all required session state variables"""
+    if "inventory" not in st.session_state:
+        st.session_state["inventory"] = {}
+    if "recipe_data" not in st.session_state:
+        st.session_state["recipe_data"] = pd.DataFrame(columns=[
+            "Recipe", "Cuisine", "Spicy", "Sweet", "Salty", "Sour", "Bitter", "Umami"
+        ])
+    if "user_ratings" not in st.session_state:
+        st.session_state["user_ratings"] = pd.DataFrame(columns=["Recipe", "Rating", "Cuisine"])
+    if "ml_model" not in st.session_state:
+        st.session_state["ml_model"] = None
+    if "scaler" not in st.session_state:
+        st.session_state["scaler"] = StandardScaler()
+    if "user_preferences" not in st.session_state:
+        st.session_state["user_preferences"] = {
+            "Spicy": 3, "Sweet": 3, "Salty": 3,
+            "Sour": 3, "Bitter": 3, "Umami": 3
+        }
 
 def get_recipes_from_inventory():
     """Fetch recipes based on available ingredients"""
@@ -37,11 +57,6 @@ def get_recipes_from_inventory():
             title = recipe["title"]
             link = f"https://spoonacular.com/recipes/{title.replace(' ', '-')}-{recipe_id}"
             
-            if "recipe_data" not in st.session_state:
-                st.session_state["recipe_data"] = pd.DataFrame(columns=[
-                    "Recipe", "Cuisine", "Spicy", "Sweet", "Salty", "Sour", "Bitter", "Umami"
-                ])
-            
             if title not in st.session_state["recipe_data"]["Recipe"].values:
                 new_recipe = {
                     "Recipe": title,
@@ -69,9 +84,6 @@ def get_recipes_from_inventory():
 
 def train_model():
     """Train the recommendation model based on user ratings"""
-    if "user_ratings" not in st.session_state:
-        st.session_state["user_ratings"] = pd.DataFrame(columns=["Recipe", "Rating", "Cuisine"])
-    
     if len(st.session_state["user_ratings"]) < 2:
         return None
     
@@ -89,9 +101,6 @@ def train_model():
     X = pd.concat([training_data[taste_features], cuisine_dummies], axis=1)
     y = training_data["Rating"]
     
-    if "scaler" not in st.session_state:
-        st.session_state["scaler"] = StandardScaler()
-    
     X_scaled = st.session_state["scaler"].fit_transform(X)
     model = RandomForestRegressor(n_estimators=100, random_state=42)
     model.fit(X_scaled, y)
@@ -100,14 +109,10 @@ def train_model():
 
 def recipe_page():
     """Main recipe page function"""
-    st.title("Smart Recipe Recommendations")
+    # Initialize all session state variables first
+    initialize_session_state()
     
-    # Initialize user preferences if not exists
-    if "user_preferences" not in st.session_state:
-        st.session_state["user_preferences"] = {
-            "Spicy": 3, "Sweet": 3, "Salty": 3,
-            "Sour": 3, "Bitter": 3, "Umami": 3
-        }
+    st.title("Smart Recipe Recommendations")
     
     # Get user preferences
     st.subheader("Your Taste Preferences")
@@ -125,10 +130,7 @@ def recipe_page():
         st.subheader("Recipe Recommendations")
         
         # Train model if enough ratings
-        if "ml_model" not in st.session_state:
-            st.session_state["ml_model"] = None
-            
-        if len(st.session_state.get("user_ratings", pd.DataFrame())) >= 2:
+        if len(st.session_state["user_ratings"]) >= 2:
             st.session_state["ml_model"] = train_model()
             
             if st.session_state["ml_model"]:
@@ -160,9 +162,6 @@ def recipe_page():
                 "Cuisine": recipe_data["Cuisine"]
             }])
             
-            if "user_ratings" not in st.session_state:
-                st.session_state["user_ratings"] = pd.DataFrame(columns=["Recipe", "Rating", "Cuisine"])
-            
             st.session_state["user_ratings"] = pd.concat([
                 st.session_state["user_ratings"],
                 new_rating
@@ -172,6 +171,9 @@ def recipe_page():
             st.experimental_rerun()
     
     # Display ratings history
-    if "user_ratings" in st.session_state and not st.session_state["user_ratings"].empty:
+    if not st.session_state["user_ratings"].empty:
         st.subheader("Your Previous Ratings")
         st.dataframe(st.session_state["user_ratings"][["Recipe", "Rating", "Cuisine"]])
+
+if __name__ == "__main__":
+    recipe_page()
