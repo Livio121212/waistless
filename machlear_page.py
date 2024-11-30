@@ -130,30 +130,37 @@ def recipe_page():
     if recipe_titles:
         st.subheader("Recipe Recommendations")
         
-        # Display top 3 recommendations with selection buttons
+        # Get top 3 recommendations
         displayed_recipes = recipe_titles[:3]
         cols = st.columns(3)
         
-        for idx, (col, title) in enumerate(zip(cols, displayed_recipes), 1):
+        for idx, (col, title) in enumerate(zip(cols, displayed_recipes)):
             with col:
                 st.write(f"**{title}**")
                 st.write(f"[View Recipe]({recipe_links[title]})")
-                if st.button(f"Select Recipe #{idx}", key=f"select_{idx}"):
+                if st.button(f"Select Recipe #{idx + 1}"):
                     st.session_state["selected_recipe"] = title
         
-        # Rating system (only show if a recipe is selected)
-        if st.session_state["selected_recipe"]:
-            st.subheader("Rate Recipe")
-            st.write(f"Rating for: **{st.session_state['selected_recipe']}**")
-            rating = st.slider("Rating", 1, 5, 3)
-            
-            if st.button("Submit Rating"):
+        # Rating system
+        st.subheader("Rate a Recipe")
+        
+        # Create radio buttons for the 3 recommended recipes
+        recipe_to_rate = st.radio(
+            "Select recipe to rate:",
+            displayed_recipes,
+            index=displayed_recipes.index(st.session_state["selected_recipe"]) if st.session_state["selected_recipe"] in displayed_recipes else 0
+        )
+        
+        rating = st.slider("Rating", 1, 5, 3)
+        
+        if st.button("Submit Rating"):
+            try:
                 recipe_data = st.session_state["recipe_data"][
-                    st.session_state["recipe_data"]["Recipe"] == st.session_state["selected_recipe"]
+                    st.session_state["recipe_data"]["Recipe"] == recipe_to_rate
                 ].iloc[0]
                 
                 new_rating = pd.DataFrame([{
-                    "Recipe": st.session_state["selected_recipe"],
+                    "Recipe": recipe_to_rate,
                     "Rating": rating,
                     "Cuisine": recipe_data["Cuisine"]
                 }])
@@ -164,14 +171,14 @@ def recipe_page():
                 ], ignore_index=True)
                 
                 st.success("Rating submitted successfully!")
-                # Clear the selected recipe after rating
                 st.session_state["selected_recipe"] = None
-                st.experimental_rerun()
-    
-    # Display ratings history
-    if not st.session_state["user_ratings"].empty:
-        st.subheader("Your Previous Ratings")
-        st.dataframe(st.session_state["user_ratings"][["Recipe", "Rating", "Cuisine"]])
+            except Exception as e:
+                st.error("Unable to submit rating. Please try again.")
+        
+        # Display ratings history
+        if not st.session_state["user_ratings"].empty:
+            st.subheader("Your Previous Ratings")
+            st.dataframe(st.session_state["user_ratings"][["Recipe", "Rating", "Cuisine"]])
 
 if __name__ == "__main__":
     recipe_page()
