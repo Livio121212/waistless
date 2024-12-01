@@ -31,6 +31,30 @@ def initialize_session_state():
     if "selected_recipe" not in st.session_state:
         st.session_state["selected_recipe"] = None
 
+def predict_recipe_score(recipe_data):
+    """Predict recipe score based on user preferences and ML model"""
+    taste_features = ["Spicy", "Sweet", "Salty", "Sour", "Bitter", "Umami"]
+    
+    # Calculate taste preference similarity
+    taste_similarity = sum(
+        1 - abs(recipe_data[taste] - st.session_state["user_preferences"][taste]) / 4
+        for taste in taste_features
+    ) / len(taste_features)
+    
+    # If we have enough ratings, use ML model prediction
+    if st.session_state["ml_model"] is not None:
+        cuisine_dummies = pd.get_dummies(pd.Series([recipe_data["Cuisine"]]), prefix="Cuisine")
+        X = pd.DataFrame([recipe_data[taste_features].values], columns=taste_features)
+        X = pd.concat([X, cuisine_dummies], axis=1)
+        X_scaled = st.session_state["scaler"].transform(X)
+        predicted_rating = st.session_state["ml_model"].predict(X_scaled)[0]
+        final_score = (predicted_rating + taste_similarity * 5) / 2
+    else:
+        # If no ML model yet, use only taste similarity
+        final_score = taste_similarity * 5
+    
+    return final_score
+
 def get_recipes_from_inventory():
     """Fetch recipes based on available ingredients"""
     ingredients = list(st.session_state["inventory"].keys())
@@ -53,35 +77,56 @@ def get_recipes_from_inventory():
         recipe_titles = []
         recipe_links = {}
         cuisines = ["Italian", "Asian", "Mexican", "Mediterranean", "American"]
+        recipe_scores = []
         
         for recipe in recipes:
-            recipe_id = recipe["id"]
-            title = recipe["title"]
-            link = f"https://spoonacular.com/recipes/{title.replace(' ', '-')}-{recipe_id}"
-            
-            if title not in st.session_state["recipe_data"]["Recipe"].values:
-                new_recipe = {
-                    "Recipe": title,
-                    "Cuisine": np.random.choice(cuisines),
-                    "Spicy": np.random.randint(1, 6),
-                    "Sweet": np.random.randint(1, 6),
-                    "Salty": np.random.randint(1, 6),
-                    "Sour": np.random.randint(1, 6),
-                    "Bitter": np.random.randint(1, 6),
-                    "Umami": np.random.randint(1, 6)
-                }
-                st.session_state["recipe_data"] = pd.concat([
-                    st.session_state["recipe_data"],
-                    pd.DataFrame([new_recipe])
-                ], ignore_index=True)
-            
-            recipe_titles.append(title)
-            recipe_links[title] = link
+            try:
+                recipe_id = recipe.get("id")
+                title = recipe.get("title")
+                
+                if not recipe_id or not title:
+                    continue
+                    
+                link = f"https://spoonacular.com/recipes/{title.replace(' ', '-')}-{recipe_id}"
+                
+                if title not in st.session_state["recipe_data"]["Recipe"].values:
+                    new_recipe = {
+                        "Recipe": title,
+                        "Cuisine": np.random.choice(cuisines),
+                        "Spicy": np.random.randint(1, 6),
+                        "Sweet": np.random.randint(1, 6),
+                        "Salty": np.random.randint(1, 6),
+                        "Sour": np.random.randint(1, 6),
+                        "Bitter": np.random.randint(1, 6),
+                        "Umami": np.random.randint(1, 6)
+                    }
+                    st.session_state["recipe_data"] = pd.concat([
+                        st.session_state["recipe_data"],
+                        pd.DataFrame([new_recipe])
+                    ], ignore_index=True)
+                
+                # Get recipe data and calculate score
+                recipe_data = st.session_state["recipe_data"][
+                    st.session_state["recipe_data"]["Recipe"] == title
+                ].iloc[0]
+                score = predict_recipe_score(recipe_data)
+                
+                recipe_scores.append((title, link, score))
+                
+            except (KeyError, IndexError) as e:
+                continue
+        
+        # Sort recipes by score and get top matches
+        recipe_scores.sort(key=lambda x: x[2], reverse=True)
+        
+        # Separate into titles and links
+        recipe_titles = [title for title, _, _ in recipe_scores]
+        recipe_links = {title: link for title, link, _ in recipe_scores}
 
         return recipe_titles, recipe_links
 
-    except requests.RequestException:
-        st.info("Unable to fetch recipes at the moment. Please try again later.")
+    except requests.RequestException as e:
+        st.error(f"Unable to fetch recipes at the moment. Please try again later. Error: {str(e)}")
         return [], {}
 
 def train_model():
@@ -117,12 +162,19 @@ def recipe_page():
     
     # Get user preferences
     st.subheader("Your Taste Preferences")
+    preferences_changed = False
     for taste, value in st.session_state["user_preferences"].items():
-        st.session_state["user_preferences"][taste] = st.slider(
+        new_value = st.slider(
             f"How much do you like {taste.lower()}?",
             1, 5, value,
             help=f"Rate how much you enjoy {taste.lower()} flavors"
         )
+        if new_value != value:
+            preferences_changed = True
+            st.session_state["user_preferences"][taste] = new_value
+    
+    # Train/update model with existing ratings
+    st.session_state["ml_model"] = train_model()
     
     # Get and display recipes
     recipe_titles, recipe_links = get_recipes_from_inventory()
@@ -136,8 +188,19 @@ def recipe_page():
         
         for idx, (col, title) in enumerate(zip(cols, displayed_recipes)):
             with col:
+                recipe_data = st.session_state["recipe_data"][
+                    st.session_state["recipe_data"]["Recipe"] == title
+                ].iloc[0]
+                
                 st.write(f"**{title}**")
+                st.write(f"Cuisine: {recipe_data['Cuisine']}")
                 st.write(f"[View Recipe]({recipe_links[title]})")
+                
+                # Display predicted score if ML model exists
+                if st.session_state["ml_model"] is not None:
+                    score = predict_recipe_score(recipe_data)
+                    st.write(f"Match Score: {score:.1f}/5")
+                
                 if st.button(f"Select Recipe #{idx + 1}"):
                     st.session_state["selected_recipe"] = title
         
@@ -172,8 +235,12 @@ def recipe_page():
                 
                 st.success("Rating submitted successfully!")
                 st.session_state["selected_recipe"] = None
+                
+                # Retrain model with new rating
+                st.session_state["ml_model"] = train_model()
+                
             except Exception as e:
-                st.error("Unable to submit rating. Please try again.")
+                st.error(f"Unable to submit rating. Please try again. Error: {str(e)}")
         
         # Display ratings history
         if not st.session_state["user_ratings"].empty:
