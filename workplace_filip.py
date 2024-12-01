@@ -4,10 +4,34 @@ import requests
 import numpy as np
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.preprocessing import StandardScaler
+import re
 
 # API configuration
 API_KEY = 'a79012e4b3e1431e812d8b17bee3a4d7'
 SPOONACULAR_URL = 'https://api.spoonacular.com/recipes/findByIngredients'
+
+def is_valid_recipe_title(title):
+    """Check if a recipe title is valid (not a question, not empty, etc.)"""
+    if not title:
+        return False
+    
+    # Check if title starts with a question word or contains a question mark
+    question_words = ['what', 'how', 'why', 'when', 'where', 'who', 'which']
+    title_lower = title.lower()
+    
+    if '?' in title:
+        return False
+        
+    if any(title_lower.startswith(word) for word in question_words):
+        return False
+        
+    return True
+
+def format_recipe_link(title, recipe_id):
+    """Format the recipe link properly"""
+    formatted_title = re.sub(r'[^\w\s-]', '', title)
+    formatted_title = formatted_title.replace(' ', '-').lower()
+    return f"https://spoonacular.com/recipes/{formatted_title}-{recipe_id}"
 
 def initialize_session_state():
     """Initialize all required session state variables"""
@@ -65,7 +89,7 @@ def get_recipes_from_inventory():
     try:
         params = {
             "ingredients": ",".join(ingredients),
-            "number": 10,
+            "number": 15,  # Increased to ensure we get enough valid recipes
             "ranking": 2,
             "apiKey": API_KEY
         }
@@ -84,10 +108,11 @@ def get_recipes_from_inventory():
                 recipe_id = recipe.get("id")
                 title = recipe.get("title")
                 
-                if not recipe_id or not title:
+                # Skip invalid recipes
+                if not recipe_id or not title or not is_valid_recipe_title(title):
                     continue
                     
-                link = f"https://spoonacular.com/recipes/{title.replace(' ', '-')}-{recipe_id}"
+                link = format_recipe_link(title, recipe_id)
                 
                 if title not in st.session_state["recipe_data"]["Recipe"].values:
                     new_recipe = {
@@ -116,6 +141,10 @@ def get_recipes_from_inventory():
             except (KeyError, IndexError) as e:
                 continue
         
+        if not recipe_scores:
+            st.warning("No valid recipes found for your ingredients. Try adding more ingredients!")
+            return [], {}
+            
         # Sort recipes by score and get top matches
         recipe_scores.sort(key=lambda x: x[2], reverse=True)
         
