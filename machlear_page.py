@@ -54,6 +54,8 @@ def initialize_session_state():
         }
     if "selected_recipe" not in st.session_state:
         st.session_state["selected_recipe"] = None
+    if "selected_cuisine" not in st.session_state:
+        st.session_state["selected_cuisine"] = "Any"
 
 def predict_recipe_score(recipe_data):
     """Predict recipe score based on user preferences and ML model"""
@@ -89,7 +91,7 @@ def get_recipes_from_inventory():
     try:
         params = {
             "ingredients": ",".join(ingredients),
-            "number": 15,  # Increased to ensure we get enough valid recipes
+            "number": 30,  # Increased to ensure we get enough valid recipes after filtering
             "ranking": 2,
             "apiKey": API_KEY
         }
@@ -134,15 +136,22 @@ def get_recipes_from_inventory():
                 recipe_data = st.session_state["recipe_data"][
                     st.session_state["recipe_data"]["Recipe"] == title
                 ].iloc[0]
-                score = predict_recipe_score(recipe_data)
                 
+                # Filter by cuisine if selected
+                if st.session_state["selected_cuisine"] != "Any" and recipe_data["Cuisine"] != st.session_state["selected_cuisine"]:
+                    continue
+                
+                score = predict_recipe_score(recipe_data)
                 recipe_scores.append((title, link, score))
                 
             except (KeyError, IndexError) as e:
                 continue
         
         if not recipe_scores:
-            st.warning("No valid recipes found for your ingredients. Try adding more ingredients!")
+            if st.session_state["selected_cuisine"] != "Any":
+                st.warning(f"No {st.session_state['selected_cuisine']} recipes found. Try selecting a different cuisine or adding more ingredients!")
+            else:
+                st.warning("No valid recipes found for your ingredients. Try adding more ingredients!")
             return [], {}
             
         # Sort recipes by score and get top matches
@@ -191,6 +200,16 @@ def recipe_page():
     
     # Get user preferences
     st.subheader("Your Taste Preferences")
+    
+    # Add cuisine selection
+    cuisines = ["Any", "Italian", "Asian", "Mexican", "Mediterranean", "American"]
+    selected_cuisine = st.selectbox(
+        "Select cuisine type:",
+        cuisines,
+        index=cuisines.index(st.session_state["selected_cuisine"])
+    )
+    st.session_state["selected_cuisine"] = selected_cuisine
+    
     preferences_changed = False
     for taste, value in st.session_state["user_preferences"].items():
         new_value = st.slider(
