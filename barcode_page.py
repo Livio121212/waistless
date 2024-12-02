@@ -17,7 +17,7 @@ if "purchases" not in st.session_state:
     st.session_state["purchases"] = {mate: [] for mate in st.session_state["roommates"]}
 
 # Function to recognize and decode barcode in picture
-def decode_barcode(image):
+def barcode_decode(image):
     decoded_objects = decode(image)  # Searching the barcode and save the list of barcodes in the variable
     for obj in decoded_objects:
         return obj.data.decode("utf-8") # Convert a binary number into a string
@@ -89,7 +89,7 @@ def barcode_page():
     if uploaded_file is not None: # Checks if an image has been uploaded
         image = Image.open(uploaded_file)  # Use pillow library to open the image
         st.write("Scanning for barcode...")
-        barcode = decode_barcode(image) # Activates the barcode function to scan the image for a barcode
+        barcode = barcode_decode(image) # Activates the barcode function to scan the image for a barcode
 
         if barcode: # Check if a barcode was found
             st.write(f"Barcode found: {barcode}")
