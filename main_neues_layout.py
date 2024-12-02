@@ -59,50 +59,6 @@ def overview_page():
     st.title(title)
     st.write("In progress!!!")
  
- # CSS for dark theme layout
-dark_theme_css = """
-<style>
-/* Global background and text color */
-body {
-    background-color: black !important;
-    color: white !important;
-}
-
-/* Sidebar adjustments */
-[data-testid="stSidebar"] {
-    background-color: black !important;
-    color: white !important;
-}
-
-/* Header and title adjustments */
-h1, h2, h3, h4, h5, h6 {
-    color: white !important;
-}
-
-/* Links */
-a {
-    color: #1E90FF !important; /* Optional: Blue for links */
-}
-
-/* Input fields and text areas */
-input, textarea {
-    background-color: #333 !important;
-    color: white !important;
-    border: 1px solid white !important;
-}
-
-input::placeholder, textarea::placeholder {
-    color: gray !important;
-}
-
-/* Buttons */
-button {
-    background-color: white !important;
-    color: black !important;
-    border-radius: 5px !important;
-}
-
-
 
 # Function to change pages
 def change_page(new_page):
