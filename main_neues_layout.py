@@ -73,8 +73,10 @@ circular_image_css = """
     width: 150px;
     height: 150px;
     border-radius: 50%;
-    object-fit: cover;
-    border: 2px solid #ddd;
+    object-fit: contain; /* Ensures the full image is visible */
+    background-color: #fff; /* Adds a background to fill any empty space */
+    border: 2px solid #ddd; /* Optional border */
+    padding: 5px; /* Adds a small padding to avoid content cutoff */
 }
 </style>
 """
