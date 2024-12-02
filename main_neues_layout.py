@@ -64,20 +64,17 @@ def overview_page():
 def change_page(new_page):
     st.session_state["page"] = new_page
 
-# Optimized CSS for circular image
+# CSS for circular image
 circular_image_css = """
 <style>
 .circular-logo {
     display: block;
     margin: 0 auto;
-    width: 140px; /* Adjusted width for better visibility */
-    height: 140px; /* Adjusted height to match the width */
+    width: 150px;
+    height: 150px;
     border-radius: 50%;
-    object-fit: contain; /* Changed from cover to contain for better aspect ratio */
-    border: 3px solid #ddd;
-    padding: 5px; /* Added padding for inner spacing */
-    background-color: white; /* Optional background color for better contrast */
-    box-sizing: border-box; /* Ensures padding doesn't affect size */
+    object-fit: cover;
+    border: 2px solid #ddd;
 }
 </style>
 """
