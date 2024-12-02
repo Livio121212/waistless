@@ -88,8 +88,6 @@ def predict_recipe_score(recipe_data):
 def main():
     st.title("Smart Recipe Recommendations")
     
-    initialize_session_state()
-    
     with st.container():
         st.subheader("Recipe Preferences")
         
