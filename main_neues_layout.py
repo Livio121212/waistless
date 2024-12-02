@@ -87,7 +87,15 @@ circular_image_css = """
 """
 
 # Logo URL
-logo_url = "https://raw.githubusercontent.com/L
+logo_url = "https://raw.githubusercontent.com/Livio121212/waistless/main/Eco_Wasteless_Logo_Cropped.png"
+
+# Apply CSS and display the logo
+st.sidebar.markdown(circular_image_css, unsafe_allow_html=True)
+st.sidebar.markdown(f"""
+<div class="circular-logo-container">
+    <img src="{logo_url}" class="circular-logo">
+</div>
+""", unsafe_allow_html=True)
 
 
 
