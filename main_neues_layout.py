@@ -64,24 +64,17 @@ def overview_page():
 def change_page(new_page):
     st.session_state["page"] = new_page
 
-# CSS for circular logo with black background
+# CSS for circular image
 circular_image_css = """
 <style>
-.circular-logo-container {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    width: 180px; /* Größe des Kreises */
-    height: 180px; /* Größe des Kreises */
-    border-radius: 50%;
-    background-color: black; /* Schwarzer Hintergrund */
-    margin: 0 auto;
-}
 .circular-logo {
-    width: 150px; /* Größe des Logos innerhalb des Kreises */
+    display: block;
+    margin: 0 auto;
+    width: 150px;
     height: 150px;
     border-radius: 50%;
     object-fit: cover;
+    border: 2px solid #ddd;
 }
 </style>
 """
@@ -91,12 +84,7 @@ logo_url = "https://raw.githubusercontent.com/Livio121212/waistless/main/Eco_Was
 
 # Apply CSS and display the logo
 st.sidebar.markdown(circular_image_css, unsafe_allow_html=True)
-st.sidebar.markdown(f"""
-<div class="circular-logo-container">
-    <img src="{logo_url}" class="circular-logo">
-</div>
-""", unsafe_allow_html=True)
-
+st.sidebar.markdown(f'<img src="{logo_url}" class="circular-logo">', unsafe_allow_html=True)
 
 
 # Display of the main page
