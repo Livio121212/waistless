@@ -65,49 +65,46 @@ def display_total_expenses():
 # Function to show purchases per roommate
 def display_purchases():
     with st.expander("Purchases per Roommate"):  # Function that allows the user to expand or hide the information about purchases
-        for roommate in st.session_state["purchases"]:  # Äußere Schleife: Iteriert durch die Mitbewohner
+        for roommate in st.session_state["purchases"]:
             st.write(f"**{roommate}**")  # Display the name of the current roommate in fat letters
             
-            purchases = st.session_state["purchases"][roommate]  # Holen der Einkäufe des aktuellen Mitbewohners
+            purchases = st.session_state["purchases"][roommate]  # Access the list of purchases of the current roommate and save the list in the variable
             
-            if purchases:  # Überprüfen, ob Einkäufe existieren
-                data = []  # Temporäre Liste für die Einkäufe
+            if purchases:  # Checks if the roommate has already made purchases
+                data = []  # Create an empty list to collect the purchases. Required to create a DataFrame later
                 
-                for purchase in purchases:  # Innere Schleife: Iteriert durch die Einkäufe
-                    # Daten jedes Einkaufs sammeln
-                    data.append([purchase["Product"], purchase["Quantity"], purchase["Price"], purchase["Unit"], purchase["Date"]])
+                for purchase in purchases:  # Process each purchase from the roommate individually and extract the data from it
+                    data.append([purchase["Product"], purchase["Quantity"], purchase["Price"], purchase["Unit"], purchase["Date"]]) # Restructure the information into a list and add it to the data
                 
-                # DataFrame aus den gesammelten Daten erstellen
-                purchases_df = pd.DataFrame(data, columns=["Product", "Quantity", "Price", "Unit", "Date"])
-                
-                # DataFrame als Tabelle anzeigen
-                st.table(purchases_df)
+                purchases_df = pd.DataFrame(data, columns=["Product", "Quantity", "Price", "Unit", "Date"]) # Change the data into a table format and define the columntitle
+                st.table(purchases_df) # Display the table
             else:
-                st.write("No purchases recorded.")  # Nachricht für leere Einkaufslisten
+                st.write("No purchases recorded.")  # Message if there are no purchases
 
 # Main page function
 def barcode_page():
-    st.title("Upload your barcode")
-    uploaded_file = st.file_uploader("Upload an image with a barcode", type=["jpg", "jpeg", "png"])
+    st.title("Upload your barcode") # Define the title of the side
+    uploaded_file = st.file_uploader("Upload an image with a barcode", type=["jpg", "jpeg", "png"]) # Function that people can upload files
 
     if uploaded_file is not None: # Checks if an image has been uploaded
-        image = Image.open(uploaded_file) 
+        image = Image.open(uploaded_file)  # Use pillow library for open the image
         st.write("Scanning for barcode...")
-        barcode = decode_barcode(image)
+        barcode = decode_barcode(image) # Activates the barcode function to scan the image for a barcode
 
         if barcode: # Check if a barcode was found
             st.write(f"Barcode found: {barcode}")
             st.write("Searching for product information...")
-            product_info = get_product_info(barcode)
+            product_info = get_product_info(barcode) # Calls the previous defined function to get information about the product
 
-            if product_info: 
-                # Takes product data and displays it as pre-filled entries.
+            if product_info: # Checks if the search for product information was successful
+                
+                # Takes product data and displays it as pre-filled entries
                 food_item = st.text_input("Product:", value=product_info['name'])
                 brand = st.text_input("Brand:", value=product_info['brand']) 
             else:
-                # If no data, enter information manually.
+                # If no data, enter information manually
                 st.write("Product not found in database.")
-                food_item = st.text_input("Product:")
+                food_item = st.text_input("Product:") # Person have to add prooduct information manually
                 brand = st.text_input("Brand:")
             
             # Correct and add information manually
@@ -117,14 +114,16 @@ def barcode_page():
             price = st.number_input("Price (in CHF):", min_value=0.0, step=0.1, format="%.2f")
 
             if st.button("Add product to inventory"):
-                if food_item and quantity > 0 and price >= 0:
-                    add_product_to_inventory(food_item, quantity, unit, price, selected_roommate)
+                if food_item and quantity > 0 and price >= 0: # Make sure that all fields have been filled in
+                    add_product_to_inventory(food_item, quantity, unit, price, selected_roommate) # Add product to the inventory
                 else:
                     st.warning("Please fill in all fields.")
         else:
-            st.write("No barcode found in the image.")
+            st.write("No barcode found in the image.") # Return that no barcode was found on the picture
 
-    display_total_expenses()
-    display_purchases()
+    display_total_expenses() # Calls previous define function to display the expenses
+    display_purchases() # Calls previous define function to display the purchases
 
+# The following part is unnecessary because it is only used to run and test this page
+# Run page
 barcode_page()
