@@ -64,14 +64,26 @@ def display_total_expenses():
 
 # Function to show purchases per roommate
 def display_purchases():
-    with st.expander("Purchases per Roommate"): # Function that allows the user to expand or hide the information about purchases
-        for roommate, purchases in st.session_state["purchases"].items():
-            st.write(f"**{roommate}**") # Display the name of the current roommate in fat letters
-            if purchases:
-                purchases_df = pd.DataFrame(purchases)
+    with st.expander("Purchases per Roommate"):  # Function that allows the user to expand or hide the information about purchases
+        for roommate in st.session_state["purchases"]:  # Äußere Schleife: Iteriert durch die Mitbewohner
+            st.write(f"**{roommate}**")  # Display the name of the current roommate in fat letters
+            
+            purchases = st.session_state["purchases"][roommate]  # Holen der Einkäufe des aktuellen Mitbewohners
+            
+            if purchases:  # Überprüfen, ob Einkäufe existieren
+                data = []  # Temporäre Liste für die Einkäufe
+                
+                for purchase in purchases:  # Innere Schleife: Iteriert durch die Einkäufe
+                    # Daten jedes Einkaufs sammeln
+                    data.append([purchase["Product"], purchase["Quantity"], purchase["Price"], purchase["Unit"], purchase["Date"]])
+                
+                # DataFrame aus den gesammelten Daten erstellen
+                purchases_df = pd.DataFrame(data, columns=["Product", "Quantity", "Price", "Unit", "Date"])
+                
+                # DataFrame als Tabelle anzeigen
                 st.table(purchases_df)
             else:
-                st.write("No purchases recorded.")
+                st.write("No purchases recorded.")  # Nachricht für leere Einkaufslisten
 
 # Main page function
 def barcode_page():
