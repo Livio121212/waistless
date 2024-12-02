@@ -1,11 +1,12 @@
-import streamlit as st
-import pandas as pd
+import streamlit as st 
+import pandas as pd # Use to display data in table
 from PIL import Image # Use for editing images
 from pyzbar.pyzbar import decode # Use for decoing barcode
-import requests
-from datetime import datetime
+import requests # Use to request data from API
+from datetime import datetime  # use to record the date and time
 
-# Initialization of the session status for saving values between interactions.
+# Initialization of the session status for saving values between interactions
+# The following part is unnecessary because it is only used to run and test this page
 if "inventory" not in st.session_state:
     st.session_state["inventory"] = {}
 if "roommates" not in st.session_state:
@@ -15,57 +16,57 @@ if "expenses" not in st.session_state:
 if "purchases" not in st.session_state:
     st.session_state["purchases"] = {mate: [] for mate in st.session_state["roommates"]}
 
-# Decoding barcodes
+# Function to recognize and decode barcode in picture
 def decode_barcode(image):
-    decoded_objects = decode(image)  # Searching the barcode
+    decoded_objects = decode(image)  # Searching the barcode and save the list of barcodes in the variable
     for obj in decoded_objects:
         return obj.data.decode("utf-8") # Convert a binary number into a string
-    return None
+    return None # Returns non if no barcode was found
 
-# Get product information
+# Function to get product information
 def get_product_info(barcode):
-    url = f"https://world.openfoodfacts.org/api/v0/product/{barcode}.json" #URL refers to the Open Food Facts API
-    response = requests.get(url) 
+    url = f"https://world.openfoodfacts.org/api/v0/product/{barcode}.json" # URL refers to the Open Food Facts API
+    response = requests.get(url) # Connects to the Open Food Facts API and sends a request
     if response.status_code == 200: # It means that the request was successful and the data is available
         data = response.json() # Converts the response data from JSON into a Python dictionary
-        if data.get("status") == 1: 
-            product = data["product"] # Extract product information
+        if data.get("status") == 1:  # If status one: Barcode exists in the database, if status 0: Barcode does not exist in the database
+            product = data["product"] # Extract product information and return name and brand
             return {
                 "name": product.get("product_name", "Unknown Product"), # When no value available default value
                 "brand": product.get("brands", "Unknown Brand")
             }
-    return None
+    return None # return None, if barcode does not exist in the database
 
-# add product to inventory
-def add_product_to_inventory(food_item, quantity, unit, price, selected_roommate):
-    purchase_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    if food_item in st.session_state["inventory"]:  # checks if the food is already in the inventory
-        st.session_state["inventory"][food_item]["Quantity"] += quantity
-        st.session_state["inventory"][food_item]["Price"] += price
+# Function to add product to inventory
+def add_product_to_inventory(food_item, quantity, unit, price, selected_roommate): 
+    purchase_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S") # Save the time at which a product is added to the inventory
+    if food_item in st.session_state["inventory"]:  # checks if the food is already in the inventory to ensure that no product appears twice by name in the Invenory
+        st.session_state["inventory"][food_item]["Quantity"] += quantity # Add the quantity to the existing quantity
+        st.session_state["inventory"][food_item]["Price"] += price # Add the price to the existing price
     else:
-        st.session_state["inventory"][food_item] = {"Quantity": quantity, "Unit": unit, "Price": price}
+        st.session_state["inventory"][food_item] = {"Quantity": quantity, "Unit": unit, "Price": price} # If the product is not currently in the inventory, it will be added as a new one and the quantity, unit and price will be adopted
     
-    st.session_state["expenses"][selected_roommate] += price
-    st.session_state["purchases"][selected_roommate].append({
+    st.session_state["expenses"][selected_roommate] += price # The expenses of the product are added to the respective expenses of the person
+    st.session_state["purchases"][selected_roommate].append({ # the entire purchase is saved in the history
         "Product": food_item,
         "Quantity": quantity,
         "Price": price,
         "Unit": unit,
         "Date": purchase_time
     })
-    st.success(f"'{food_item}' has been added to the inventory, and {selected_roommate}'s expenses were updated.")
+    st.success(f"'{food_item}' has been added to the inventory, and {selected_roommate}'s expenses were updated.") # Displays to the user that the product has been successfully added to the inventory
 
-# Show total expenses
+# Function to show total expenses in a table
 def display_total_expenses():
-    with st.expander("View Total Expenses per Roommate"):
+    with st.expander("View Total Expenses per Roommate"): # Function that allows the user to expand or hide the information about expenses
         expenses_df = pd.DataFrame(list(st.session_state["expenses"].items()), columns=["Roommate", "Total Expenses (CHF)"]) # Generates a list of tuples and assigns column titles
-        st.table(expenses_df)
+        st.table(expenses_df)  # Show the table
 
-# show purchases
+# Function to show purchases per roommate
 def display_purchases():
-    with st.expander("Purchases per Roommate"):
+    with st.expander("Purchases per Roommate"): # Function that allows the user to expand or hide the information about purchases
         for roommate, purchases in st.session_state["purchases"].items():
-            st.write(f"**{roommate}**")
+            st.write(f"**{roommate}**") # Display the name of the current roommate in fat letters
             if purchases:
                 purchases_df = pd.DataFrame(purchases)
                 st.table(purchases_df)
