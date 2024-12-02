@@ -5,35 +5,35 @@ import numpy as np
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.preprocessing import StandardScaler
 import re
-
+import json
+import os
 # API configuration
 API_KEY = 'a79012e4b3e1431e812d8b17bee3a4d7'
 SPOONACULAR_URL = 'https://api.spoonacular.com/recipes/findByIngredients'
-
+CACHE_FILE = 'recipe_cache.json'
+# Load cache if exists
+def load_cache():
+    if os.path.exists(CACHE_FILE):
+        with open(CACHE_FILE, 'r') as f:
+            return json.load(f)
+    return {}
+# Save cache
+def save_cache(cache):
+    with open(CACHE_FILE, 'w') as f:
+        json.dump(cache, f)
+# Initialize cache
+RECIPE_CACHE = load_cache()
 def is_valid_recipe_title(title):
-    """Check if a recipe title is valid (not a question, not empty, etc.)"""
     if not title:
         return False
-    
     question_words = ['what', 'how', 'why', 'when', 'where', 'who', 'which']
     title_lower = title.lower()
-    
-    if '?' in title:
-        return False
-        
-    if any(title_lower.startswith(word) for word in question_words):
-        return False
-        
-    return True
-
+    return not ('?' in title or any(title_lower.startswith(word) for word in question_words))
 def format_recipe_link(title, recipe_id):
-    """Format the recipe link properly"""
     formatted_title = re.sub(r'[^\w\s-]', '', title)
     formatted_title = formatted_title.replace(' ', '-').lower()
     return f"https://spoonacular.com/recipes/{formatted_title}-{recipe_id}"
-
 def initialize_session_state():
-    """Initialize all required session state variables"""
     if "inventory" not in st.session_state:
         st.session_state["inventory"] = {}
     if "recipe_data" not in st.session_state:
@@ -55,43 +55,26 @@ def initialize_session_state():
         st.session_state["selected_recipe"] = None
     if "selected_cuisine" not in st.session_state:
         st.session_state["selected_cuisine"] = "Any"
-
-def predict_recipe_score(recipe_data):
-    """Predict recipe score based on user preferences and ML model"""
-    taste_features = ["Spicy", "Sweet", "Salty", "Sour", "Bitter", "Umami"]
-    
-    taste_similarity = sum(
-        1 - abs(recipe_data[taste] - st.session_state["user_preferences"][taste]) / 4
-        for taste in taste_features
-    ) / len(taste_features)
-    
-    if st.session_state["ml_model"] is not None:
-        cuisine_dummies = pd.get_dummies(pd.Series([recipe_data["Cuisine"]]), prefix="Cuisine")
-        X = pd.DataFrame([recipe_data[taste_features].values], columns=taste_features)
-        X = pd.concat([X, cuisine_dummies], axis=1)
-        X_scaled = st.session_state["scaler"].transform(X)
-        predicted_rating = st.session_state["ml_model"].predict(X_scaled)[0]
-        final_score = (predicted_rating + taste_similarity * 5) / 2
-    else:
-        final_score = taste_similarity * 5
-    
-    return final_score
-
+    if "api_calls_remaining" not in st.session_state:
+        st.session_state["api_calls_remaining"] = 150  # Daily limit
+def get_cached_recipe_details(recipe_id):
+    return RECIPE_CACHE.get(str(recipe_id))
+def cache_recipe_details(recipe_id, details):
+    RECIPE_CACHE[str(recipe_id)] = details
+    save_cache(RECIPE_CACHE)
 def get_recipes_from_inventory():
-    """Fetch recipes based on available ingredients"""
     ingredients = list(st.session_state["inventory"].keys())
     if not ingredients:
         st.info("Add some ingredients to your inventory to get recipe recommendations!")
         return [], {}
-
     try:
+        # First API call - get basic recipe information
         params = {
             "ingredients": ",".join(ingredients),
-            "number": 30,  # Increased to ensure we get enough valid recipes after filtering
+            "number": 10,  # Reduced number to minimize API calls
             "ranking": 2,
             "apiKey": API_KEY
         }
-
         response = requests.get(SPOONACULAR_URL, params=params)
         response.raise_for_status()
         recipes = response.json()
@@ -107,36 +90,54 @@ def get_recipes_from_inventory():
                 
                 if not recipe_id or not title or not is_valid_recipe_title(title):
                     continue
+                # Check cache first
+                cached_details = get_cached_recipe_details(recipe_id)
+                if cached_details:
+                    recipe_details = cached_details
+                else:
+                    # Only make API call if not in cache
+                    if st.session_state["api_calls_remaining"] <= 0:
+                        st.error("Daily API limit reached. Please try again tomorrow.")
+                        return [], {}
                     
-                # Get detailed recipe information including cuisine
-                detailed_recipe_url = f"https://api.spoonacular.com/recipes/{recipe_id}/information"
-                detailed_params = {"apiKey": API_KEY}
-                detailed_response = requests.get(detailed_recipe_url, params=detailed_params)
-                detailed_response.raise_for_status()
-                recipe_details = detailed_response.json()
-                
-                # Get cuisine from API or default to a general category
+                    detailed_recipe_url = f"https://api.spoonacular.com/recipes/{recipe_id}/information"
+                    detailed_params = {"apiKey": API_KEY}
+                    detailed_response = requests.get(detailed_recipe_url, params=detailed_params)
+                    detailed_response.raise_for_status()
+                    recipe_details = detailed_response.json()
+                    
+                    # Cache the results
+                    cache_recipe_details(recipe_id, recipe_details)
+                    st.session_state["api_calls_remaining"] -= 1
+                # Determine cuisine
                 cuisines = recipe_details.get("cuisines", [])
                 if cuisines:
-                    cuisine = cuisines[0]  # Take the first cuisine if multiple are provided
+                    cuisine = cuisines[0]
                 else:
-                    # Try to determine cuisine from dish type or default to "International"
                     dish_types = recipe_details.get("dishTypes", [])
-                    if "italian" in dish_types:
-                        cuisine = "Italian"
-                    elif "asian" in dish_types or "chinese" in dish_types or "japanese" in dish_types:
-                        cuisine = "Asian"
-                    elif "mexican" in dish_types:
-                        cuisine = "Mexican"
-                    elif "mediterranean" in dish_types:
-                        cuisine = "Mediterranean"
-                    elif "american" in dish_types:
-                        cuisine = "American"
-                    else:
-                        cuisine = "International"
-                
+                    cuisine = "International"
+                    for dish_type in dish_types:
+                        if "italian" in dish_type:
+                            cuisine = "Italian"
+                            break
+                        elif any(x in dish_type for x in ["asian", "chinese", "japanese"]):
+                            cuisine = "Asian"
+                            break
+                        elif "mexican" in dish_type:
+                            cuisine = "Mexican"
+                            break
+                        elif "mediterranean" in dish_type:
+                            cuisine = "Mediterranean"
+                            break
+                        elif "american" in dish_type:
+                            cuisine = "American"
+                            break
+                # Skip if cuisine doesn't match selection
+                if st.session_state["selected_cuisine"] != "Any" and cuisine != st.session_state["selected_cuisine"]:
+                    continue
                 link = format_recipe_link(title, recipe_id)
                 
+                # Add or update recipe data
                 if title not in st.session_state["recipe_data"]["Recipe"].values:
                     new_recipe = {
                         "Recipe": title,
@@ -152,20 +153,15 @@ def get_recipes_from_inventory():
                         st.session_state["recipe_data"],
                         pd.DataFrame([new_recipe])
                     ], ignore_index=True)
-                
-                # Get recipe data and calculate score
                 recipe_data = st.session_state["recipe_data"][
                     st.session_state["recipe_data"]["Recipe"] == title
                 ].iloc[0]
                 
-                # Filter by cuisine if selected
-                if st.session_state["selected_cuisine"] != "Any" and recipe_data["Cuisine"] != st.session_state["selected_cuisine"]:
-                    continue
-                
                 score = predict_recipe_score(recipe_data)
                 recipe_scores.append((title, link, score))
                 
-            except (KeyError, IndexError, requests.RequestException) as e:
+            except Exception as e:
+                st.warning(f"Skipping recipe due to error: {str(e)}")
                 continue
         
         if not recipe_scores:
@@ -178,15 +174,26 @@ def get_recipes_from_inventory():
         recipe_scores.sort(key=lambda x: x[2], reverse=True)
         recipe_titles = [title for title, _, _ in recipe_scores]
         recipe_links = {title: link for title, link, _ in recipe_scores}
-
         return recipe_titles, recipe_links
-
     except requests.RequestException as e:
-        st.error(f"Unable to fetch recipes at the moment. Please try again later. Error: {str(e)}")
+        st.error(f"Unable to fetch recipes: {str(e)}")
         return [], {}
-
+def predict_recipe_score(recipe_data):
+    taste_features = ["Spicy", "Sweet", "Salty", "Sour", "Bitter", "Umami"]
+    taste_similarity = sum(
+        1 - abs(recipe_data[taste] - st.session_state["user_preferences"][taste]) / 4
+        for taste in taste_features
+    ) / len(taste_features)
+    
+    if st.session_state["ml_model"] is not None:
+        cuisine_dummies = pd.get_dummies(pd.Series([recipe_data["Cuisine"]]), prefix="Cuisine")
+        X = pd.DataFrame([recipe_data[taste_features].values], columns=taste_features)
+        X = pd.concat([X, cuisine_dummies], axis=1)
+        X_scaled = st.session_state["scaler"].transform(X)
+        predicted_rating = st.session_state["ml_model"].predict(X_scaled)[0]
+        return (predicted_rating + taste_similarity * 5) / 2
+    return taste_similarity * 5
 def train_model():
-    """Train the recommendation model based on user ratings"""
     if len(st.session_state["user_ratings"]) < 2:
         return None
     
@@ -209,14 +216,14 @@ def train_model():
     model.fit(X_scaled, y)
     
     return model
-
 def recipe_page():
-    """Main recipe page function"""
     initialize_session_state()
     
     st.title("Smart Recipe Recommendations")
     
-    # Add cuisine selection
+    # Display remaining API calls
+    st.sidebar.write(f"API Calls Remaining Today: {st.session_state['api_calls_remaining']}")
+    
     cuisines = ["Any", "Italian", "Asian", "Mexican", "Mediterranean", "American", "International"]
     selected_cuisine = st.selectbox(
         "Select cuisine type:",
@@ -225,29 +232,21 @@ def recipe_page():
     )
     st.session_state["selected_cuisine"] = selected_cuisine
     
-    # Get user preferences
     st.subheader("Your Taste Preferences")
-    preferences_changed = False
     for taste, value in st.session_state["user_preferences"].items():
         new_value = st.slider(
             f"How much do you like {taste.lower()}?",
             1, 5, value,
             help=f"Rate how much you enjoy {taste.lower()} flavors"
         )
-        if new_value != value:
-            preferences_changed = True
-            st.session_state["user_preferences"][taste] = new_value
+        st.session_state["user_preferences"][taste] = new_value
     
-    # Train/update model with existing ratings
     st.session_state["ml_model"] = train_model()
     
-    # Get and display recipes
     recipe_titles, recipe_links = get_recipes_from_inventory()
     
     if recipe_titles:
         st.subheader("Recipe Recommendations")
-        
-        # Get top 3 recommendations
         displayed_recipes = recipe_titles[:3]
         cols = st.columns(3)
         
@@ -268,9 +267,7 @@ def recipe_page():
                 if st.button(f"Select Recipe #{idx + 1}"):
                     st.session_state["selected_recipe"] = title
         
-        # Rating system
         st.subheader("Rate a Recipe")
-        
         recipe_to_rate = st.radio(
             "Select recipe to rate:",
             displayed_recipes,
@@ -298,17 +295,13 @@ def recipe_page():
                 
                 st.success("Rating submitted successfully!")
                 st.session_state["selected_recipe"] = None
-                
-                # Retrain model with new rating
                 st.session_state["ml_model"] = train_model()
                 
             except Exception as e:
-                st.error(f"Unable to submit rating. Please try again. Error: {str(e)}")
+                st.error(f"Unable to submit rating: {str(e)}")
         
-        # Display ratings history
         if not st.session_state["user_ratings"].empty:
             st.subheader("Your Previous Ratings")
             st.dataframe(st.session_state["user_ratings"][["Recipe", "Rating", "Cuisine"]])
-
 if __name__ == "__main__":
     recipe_page()
