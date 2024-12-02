@@ -64,27 +64,31 @@ def overview_page():
 def change_page(new_page):
     st.session_state["page"] = new_page
 
-# CSS for smaller circular image
+# CSS for circular image with padding
 circular_image_css = """
 <style>
-.circular-logo {
-    display: block;
+.circular-logo-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 150px;
+    height: 150px;
+    border-radius: 50%;
+    background-color: #ddd; /* Hintergrundfarbe des Kreises */
+    padding: 10px; /* Abstand zwischen Kreisrand und Bild */
     margin: 0 auto;
-    width: 120px; /* Kleinere Breite */
-    height: 120px; /* Kleinere Höhe */
+}
+.circular-logo {
+    width: 100%;
+    height: 100%;
     border-radius: 50%;
     object-fit: cover;
-    border: 2px solid #ddd;
 }
 </style>
 """
 
 # Logo URL
-logo_url = "https://raw.githubusercontent.com/Livio121212/waistless/main/Eco_Wasteless_Logo_Cropped.png"
-
-# Apply CSS and display the logo
-st.sidebar.markdown(circular_image_css, unsafe_allow_html=True)
-st.sidebar.markdown(f'<img src="{logo_url}" class="circular-logo">', unsafe_allow_html=True)
+logo_url = "https://raw.githubusercontent.com/Liv
 
 
 
