@@ -59,6 +59,56 @@ def overview_page():
     st.title(title)
     st.write("In progress!!!")
  
+ # CSS for global dark theme
+dark_theme_css = """
+<style>
+/* Global settings */
+body {
+    background-color: black;
+    color: white;
+}
+
+/* Sidebar settings */
+.css-1d391kg { /* Sidebar background */
+    background-color: black !important;
+    color: white !important;
+}
+
+/* Adjust font colors globally */
+.css-1cpxqw2, .css-qbe2hs, .css-16huue1 {
+    color: white !important;
+}
+
+/* Button styling */
+button {
+    background-color: white !important;
+    color: black !important;
+    border: none;
+    border-radius: 5px;
+    padding: 5px 10px;
+}
+
+button:hover {
+    background-color: gray !important;
+    color: white !important;
+}
+
+/* Input fields and text areas */
+input, textarea {
+    background-color: #333 !important;
+    color: white !important;
+    border: 1px solid white;
+}
+
+input::placeholder, textarea::placeholder {
+    color: gray;
+}
+</style>
+"""
+
+# Apply the dark theme
+st.markdown(dark_theme_css, unsafe_allow_html=True)
+
 
 # Function to change pages
 def change_page(new_page):
