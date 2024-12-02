@@ -46,7 +46,7 @@ def add_product_to_inventory(food_item, quantity, unit, price, selected_roommate
     else:
         st.session_state["inventory"][food_item] = {"Quantity": quantity, "Unit": unit, "Price": price} # If the product is not currently in the inventory, it will be added as a new one and the quantity, unit and price will be adopted
     
-    st.session_state["expenses"][selected_roommate] += price # The expenses of the product are added to the respective expenses of the person
+    st.session_state["expenses"][selected_roommate] += price # The cost of the product is added to the total expenses of the person
     st.session_state["purchases"][selected_roommate].append({ # the entire purchase is saved in the history
         "Product": food_item,
         "Quantity": quantity,
@@ -74,7 +74,7 @@ def display_purchases():
                 data = []  # Create an empty list to collect the purchases. Required to create a DataFrame later
                 
                 for purchase in purchases:  # Process each purchase from the roommate individually and extract the data from it
-                    data.append([purchase["Product"], purchase["Quantity"], purchase["Price"], purchase["Unit"], purchase["Date"]]) # Restructure the information into a list and add it to the data
+                    data.append([purchase["Product"], purchase["Quantity"], purchase["Price"], purchase["Unit"], purchase["Date"]]) # Extract details of purchase and add them to the data list
                 
                 purchases_df = pd.DataFrame(data, columns=["Product", "Quantity", "Price", "Unit", "Date"]) # Change the data into a table format and define the columntitle
                 st.table(purchases_df) # Display the table
@@ -87,7 +87,7 @@ def barcode_page():
     uploaded_file = st.file_uploader("Upload an image with a barcode", type=["jpg", "jpeg", "png"]) # Function that people can upload files
 
     if uploaded_file is not None: # Checks if an image has been uploaded
-        image = Image.open(uploaded_file)  # Use pillow library for open the image
+        image = Image.open(uploaded_file)  # Use pillow library to open the image
         st.write("Scanning for barcode...")
         barcode = decode_barcode(image) # Activates the barcode function to scan the image for a barcode
 
@@ -104,7 +104,7 @@ def barcode_page():
             else:
                 # If no data, enter information manually
                 st.write("Product not found in database.")
-                food_item = st.text_input("Product:") # Person have to add prooduct information manually
+                food_item = st.text_input("Product:")
                 brand = st.text_input("Brand:")
             
             # Correct and add information manually
