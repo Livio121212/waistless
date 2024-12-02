@@ -6,7 +6,7 @@ from datetime import datetime
 from settings_page import setup_flat_name, setup_roommates, add_roommate, display_roommates, settingspage, change_flat_name, manage_roommates, remove_roommate
 from fridge_page import delete_product_from_inventory, add_product_to_inventory, fridge_page, ensure_roommate_entries
 from barcode_page import decode_barcode, get_product_info, display_total_expenses, display_purchases, barcode_page
-from machlear_page import main as recipe_page
+from machlear_page import recipepage
 from store_externally import register_user, login_user, save_data, load_data, authentication, auto_save, delete_account, delete_data
 
 
