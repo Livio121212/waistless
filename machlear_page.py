@@ -34,8 +34,6 @@ def initialize_session_state():
         }
     if "selected_cuisine" not in st.session_state:
         st.session_state["selected_cuisine"] = "International"
-    if "ingredients_input" not in st.session_state:
-        st.session_state["ingredients_input"] = ""
 
 def get_recipes(ingredients, cuisine):
     """Fetch recipes based on ingredients and cuisine"""
@@ -89,7 +87,6 @@ def predict_recipe_score(recipe_data):
 
 def main():
     st.title("Smart Recipe Recommendations")
-    initialize_session_state()
     
     with st.container():
         st.subheader("Recipe Preferences")
@@ -120,33 +117,7 @@ def main():
         st.session_state["user_preferences"] = preferences
         
         # Ingredients input
-        ingredients = st.text_input(
-            "Enter ingredients (comma-separated)",
-            value=st.session_state["ingredients_input"]
-        )
-        st.session_state["ingredients_input"] = ingredients
-        
-        # Add the Check Recipes button in a container with custom styling
-        st.markdown(
-            """
-            <style>
-            div.stButton > button {
-                width: 100%;
-                background-color: #4A5BF6;
-                color: white;
-                padding: 0.5rem 1rem;
-                border-radius: 0.5rem;
-                border: none;
-                font-size: 1.1rem;
-                margin-top: 1rem;
-            }
-            div.stButton > button:hover {
-                background-color: #3A4BF6;
-            }
-            </style>
-            """,
-            unsafe_allow_html=True
-        )
+        ingredients = st.text_input("Enter ingredients (comma-separated)")
         
         if st.button("Check Recipes"):
             if not ingredients:
