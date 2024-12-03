@@ -9,7 +9,6 @@ from barcode_page import decode_barcode, get_product_info, display_total_expense
 from machlear_page import recipe_page
 from store_externally import register_user, login_user, save_data, load_data, authentication, auto_save, delete_account, delete_data
 
-
 # Initialization of session state variables
 # Flat related variables
 if "flate_name" not in st.session_state:
@@ -53,20 +52,16 @@ if "username" not in st.session_state:
 if "data" not in st.session_state:
     st.session_state["data"] = {}    
 
-# Only temporarly: in progress
 def overview_page():
     title = f"Overview: {st.session_state['flate_name']}" if st.session_state["flate_name"] else "Overview"
     st.title(title)
     st.write("In progress!!!")
- 
 
-# Function to change pages
 def change_page(new_page):
     st.session_state["page"] = new_page
 
 # Display of the main page
 if st.session_state["logged_in"]:
-
     # Sidebar navigation without account selection
     st.sidebar.title("Navigation")
     if st.sidebar.button("Overview"):
@@ -83,7 +78,6 @@ if st.session_state["logged_in"]:
         st.session_state["logged_in"] = False
         st.session_state["username"] = None
         st.session_state["data"] = {}
-
 
     # Page display logic for the selected page
     if st.session_state["page"] == "overview":
