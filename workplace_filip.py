@@ -10,8 +10,37 @@ import re
 API_KEY = 'a79012e4b3e1431e812d8b17bee3a4d7'
 SPOONACULAR_URL = 'https://api.spoonacular.com/recipes/findByIngredients'
 
-# Available cuisines
+# Available cuisines and taste features
 CUISINES = ["International", "Italian", "Asian", "Mexican", "Mediterranean", "American"]
+TASTE_FEATURES = ["Spicy", "Sweet", "Salty", "Sour", "Bitter", "Umami"]
+
+def train_ml_model():
+    """Train the ML model using existing ratings and recipe data"""
+    if len(st.session_state["user_ratings"]) < 2:
+        return None, None
+
+    # Merge ratings with recipe features
+    training_data = st.session_state["user_ratings"].merge(
+        st.session_state["recipe_data"],
+        on=["Recipe", "Cuisine"]
+    )
+    
+    if len(training_data) < 2:
+        return None, None
+    
+    # Prepare features and target
+    X = training_data[TASTE_FEATURES]
+    y = training_data["Rating"]
+    
+    # Scale features
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(X)
+    
+    # Train model
+    model = RandomForestRegressor(n_estimators=100, random_state=42)
+    model.fit(X_scaled, y)
+    
+    return model, scaler
 
 def initialize_session_state():
     """Initialize all required session state variables"""
@@ -19,18 +48,17 @@ def initialize_session_state():
         st.session_state["preferences_set"] = False
     if "recipe_data" not in st.session_state:
         st.session_state["recipe_data"] = pd.DataFrame(columns=[
-            "Recipe", "Cuisine", "Spicy", "Sweet", "Salty", "Sour", "Bitter", "Umami"
-        ])
+            "Recipe", "Cuisine"] + TASTE_FEATURES
+        )
     if "user_ratings" not in st.session_state:
         st.session_state["user_ratings"] = pd.DataFrame(columns=["Recipe", "Rating", "Cuisine"])
     if "ml_model" not in st.session_state:
         st.session_state["ml_model"] = None
     if "scaler" not in st.session_state:
-        st.session_state["scaler"] = StandardScaler()
+        st.session_state["scaler"] = None
     if "user_preferences" not in st.session_state:
         st.session_state["user_preferences"] = {
-            "Spicy": 3, "Sweet": 3, "Salty": 3,
-            "Sour": 3, "Bitter": 3, "Umami": 3
+            taste: 3 for taste in TASTE_FEATURES
         }
     if "selected_cuisine" not in st.session_state:
         st.session_state["selected_cuisine"] = "International"
@@ -45,7 +73,6 @@ def get_recipes(ingredients, cuisine):
             "number": 10,
             "apiKey": API_KEY
         }
-
         response = requests.get(SPOONACULAR_URL, params=params)
         response.raise_for_status()
         recipes = response.json()
@@ -60,9 +87,10 @@ def get_recipes(ingredients, cuisine):
                 
             detailed_url = f"https://api.spoonacular.com/recipes/{recipe_id}/information"
             detailed_response = requests.get(detailed_url, params={"apiKey": API_KEY})
+            detailed_response.raise_for_status()
             recipe_details = detailed_response.json()
             
-            recipe_cuisine = recipe_details.get("cuisines", ["International"])[0]
+            recipe_cuisine = recipe_details.get("cuisines", ["International"])[0] if recipe_details.get("cuisines") else "International"
             if cuisine != "International" and recipe_cuisine != cuisine:
                 continue
                 
@@ -71,23 +99,70 @@ def get_recipes(ingredients, cuisine):
             filtered_recipes.append(recipe)
             
         return filtered_recipes
-
     except requests.RequestException as e:
         st.error(f"Error fetching recipes: {str(e)}")
         return []
 
 def predict_recipe_score(recipe_data):
-    """Calculate recipe score based on user preferences"""
-    taste_features = ["Spicy", "Sweet", "Salty", "Sour", "Bitter", "Umami"]
+    """Calculate recipe score using ML model if available, otherwise use similarity"""
+    # Convert recipe data to feature array
+    features = np.array([[
+        recipe_data[taste] for taste in TASTE_FEATURES
+    ]])
     
+    # If we have a trained model, use it
+    if st.session_state["ml_model"] is not None and st.session_state["scaler"] is not None:
+        features_scaled = st.session_state["scaler"].transform(features)
+        return st.session_state["ml_model"].predict(features_scaled)[0]
+    
+    # Fallback to similarity-based scoring
     taste_similarity = sum(
         1 - abs(recipe_data[taste] - st.session_state["user_preferences"][taste]) / 4
-        for taste in taste_features
-    ) / len(taste_features)
+        for taste in TASTE_FEATURES
+    ) / len(TASTE_FEATURES)
     
     return taste_similarity * 5
 
-def recipe_page():
+def add_recipe_rating(title, cuisine, rating, recipe_data):
+    """Add or update a recipe rating and retrain the model"""
+    # Add rating to user_ratings
+    new_rating = pd.DataFrame([{
+        "Recipe": title,
+        "Rating": rating,
+        "Cuisine": cuisine
+    }])
+    
+    # Remove existing rating if present
+    st.session_state["user_ratings"] = st.session_state["user_ratings"][
+        st.session_state["user_ratings"]["Recipe"] != title
+    ]
+    
+    # Add new rating
+    st.session_state["user_ratings"] = pd.concat([
+        st.session_state["user_ratings"],
+        new_rating
+    ], ignore_index=True)
+    
+    # Add recipe data if not present
+    if title not in st.session_state["recipe_data"]["Recipe"].values:
+        new_recipe = {
+            "Recipe": title,
+            "Cuisine": cuisine,
+            **{taste: recipe_data[taste] for taste in TASTE_FEATURES}
+        }
+        st.session_state["recipe_data"] = pd.concat([
+            st.session_state["recipe_data"],
+            pd.DataFrame([new_recipe])
+        ], ignore_index=True)
+    
+    # Retrain model
+    model, scaler = train_ml_model()
+    if model is not None:
+        st.session_state["ml_model"] = model
+        st.session_state["scaler"] = scaler
+
+def recipepage():
+    """Main recipe recommendation page"""
     st.title("Smart Recipe Recommendations")
     initialize_session_state()
     
@@ -107,7 +182,7 @@ def recipe_page():
         
         # Sliders for taste preferences
         preferences = {}
-        for taste in ["spicy", "sweet", "salty", "sour", "bitter", "umami"]:
+        for taste in [t.lower() for t in TASTE_FEATURES]:
             value = st.slider(
                 f"How much do you like {taste}?",
                 1, 5,
@@ -118,6 +193,12 @@ def recipe_page():
         
         # Update preferences in session state
         st.session_state["user_preferences"] = preferences
+        st.session_state["preferences_set"] = True
+        
+        # Display number of rated recipes
+        n_ratings = len(st.session_state["user_ratings"])
+        if n_ratings > 0:
+            st.info(f"You have rated {n_ratings} recipes. The AI model will use these ratings to improve recommendations.")
         
         # Ingredients input
         ingredients = st.text_input(
@@ -125,28 +206,6 @@ def recipe_page():
             value=st.session_state["ingredients_input"]
         )
         st.session_state["ingredients_input"] = ingredients
-        
-        # Add the Check Recipes button styling
-        st.markdown(
-            """
-            <style>
-            div.stButton > button {
-                width: 100%;
-                background-color: #4A5BF6;
-                color: white;
-                padding: 0.5rem 1rem;
-                border-radius: 0.5rem;
-                border: none;
-                font-size: 1.1rem;
-                margin-top: 1rem;
-            }
-            div.stButton > button:hover {
-                background-color: #3A4BF6;
-            }
-            </style>
-            """,
-            unsafe_allow_html=True
-        )
         
         if st.button("Check Recipes"):
             if not ingredients:
@@ -182,11 +241,21 @@ def recipe_page():
                         score = predict_recipe_score(recipe_data)
                         st.write(f"Match Score: {score:.1f}/5")
                         
+                        # Add rating input
+                        rating = st.slider(
+                            "Rate this recipe",
+                            1, 5, 3,
+                            key=f"rating_{idx}"
+                        )
+                        
+                        if st.button("Submit Rating", key=f"rate_{idx}"):
+                            add_recipe_rating(title, cuisine, rating, recipe_data)
+                            st.success("Rating submitted! The AI model will use this to improve future recommendations.")
+                        
                         recipe_url = f"https://spoonacular.com/recipes/{title.lower().replace(' ', '-')}-{recipe['id']}"
                         st.write(f"[View Recipe]({recipe_url})")
             else:
                 st.warning("No recipes found for your ingredients and preferences. Try different ingredients or cuisine!")
 
-# Rename main function to recipe_page for proper importing
 if __name__ == "__main__":
-    recipe_page()
+    recipepage()
