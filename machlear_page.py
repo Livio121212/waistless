@@ -12,6 +12,8 @@ SPOONACULAR_URL = 'https://api.spoonacular.com/recipes/findByIngredients'
 
 # Available cuisines
 CUISINES = ["International", "Italian", "Asian", "Mexican", "Mediterranean", "American"]
+# Define taste features as a constant
+TASTE_FEATURES = ["Spicy", "Sweet", "Salty", "Sour", "Bitter", "Umami"]
 
 def initialize_session_state():
     """Initialize all required session state variables"""
@@ -19,8 +21,8 @@ def initialize_session_state():
         st.session_state["preferences_set"] = False
     if "recipe_data" not in st.session_state:
         st.session_state["recipe_data"] = pd.DataFrame(columns=[
-            "Recipe", "Cuisine", "Spicy", "Sweet", "Salty", "Sour", "Bitter", "Umami"
-        ])
+            "Recipe", "Cuisine"] + TASTE_FEATURES
+        )
     if "user_ratings" not in st.session_state:
         st.session_state["user_ratings"] = pd.DataFrame(columns=["Recipe", "Rating", "Cuisine"])
     if "ml_model" not in st.session_state:
@@ -29,8 +31,7 @@ def initialize_session_state():
         st.session_state["scaler"] = StandardScaler()
     if "user_preferences" not in st.session_state:
         st.session_state["user_preferences"] = {
-            "Spicy": 3, "Sweet": 3, "Salty": 3,
-            "Sour": 3, "Bitter": 3, "Umami": 3
+            taste: 3 for taste in TASTE_FEATURES
         }
     if "selected_cuisine" not in st.session_state:
         st.session_state["selected_cuisine"] = "International"
@@ -60,9 +61,10 @@ def get_recipes(ingredients, cuisine):
                 
             detailed_url = f"https://api.spoonacular.com/recipes/{recipe_id}/information"
             detailed_response = requests.get(detailed_url, params={"apiKey": API_KEY})
+            detailed_response.raise_for_status()
             recipe_details = detailed_response.json()
             
-            recipe_cuisine = recipe_details.get("cuisines", ["International"])[0]
+            recipe_cuisine = recipe_details.get("cuisines", ["International"])[0] if recipe_details.get("cuisines") else "International"
             if cuisine != "International" and recipe_cuisine != cuisine:
                 continue
                 
@@ -78,16 +80,15 @@ def get_recipes(ingredients, cuisine):
 
 def predict_recipe_score(recipe_data):
     """Calculate recipe score based on user preferences"""
-    taste_features = ["Spicy", "Sweet", "Salty", "Sour", "Bitter", "Umami"]
-    
     taste_similarity = sum(
         1 - abs(recipe_data[taste] - st.session_state["user_preferences"][taste]) / 4
-        for taste in taste_features
-    ) / len(taste_features)
+        for taste in TASTE_FEATURES
+    ) / len(TASTE_FEATURES)
     
     return taste_similarity * 5
 
 def recipe_page():
+    """Main recipe recommendation page"""
     st.title("Smart Recipe Recommendations")
     initialize_session_state()
     
@@ -107,7 +108,7 @@ def recipe_page():
         
         # Sliders for taste preferences
         preferences = {}
-        for taste in ["spicy", "sweet", "salty", "sour", "bitter", "umami"]:
+        for taste in [t.lower() for t in TASTE_FEATURES]:
             value = st.slider(
                 f"How much do you like {taste}?",
                 1, 5,
@@ -118,6 +119,7 @@ def recipe_page():
         
         # Update preferences in session state
         st.session_state["user_preferences"] = preferences
+        st.session_state["preferences_set"] = True
         
         # Ingredients input
         ingredients = st.text_input(
@@ -187,6 +189,5 @@ def recipe_page():
             else:
                 st.warning("No recipes found for your ingredients and preferences. Try different ingredients or cuisine!")
 
-# Rename main function to recipe_page for proper importing
 if __name__ == "__main__":
     recipe_page()
