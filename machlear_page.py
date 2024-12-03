@@ -87,8 +87,7 @@ def predict_recipe_score(recipe_data):
     
     return taste_similarity * 5
 
-def main():
-    """Main function to run the recipe recommendation application"""
+def recipe_page():
     st.title("Smart Recipe Recommendations")
     initialize_session_state()
     
@@ -188,5 +187,6 @@ def main():
             else:
                 st.warning("No recipes found for your ingredients and preferences. Try different ingredients or cuisine!")
 
+# Rename main function to recipe_page for proper importing
 if __name__ == "__main__":
-    main()
+    recipe_page()
