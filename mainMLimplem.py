@@ -1,13 +1,10 @@
 import streamlit as st
-import pandas as pd
-from PIL import Image
-import requests
-from datetime import datetime
-from settings_page import setup_flat_name, setup_roommates, add_roommate, display_roommates, settingspage, change_flat_name, manage_roommates, remove_roommate
-from fridge_page import delete_product_from_inventory, add_product_to_inventory, fridge_page, ensure_roommate_entries
-from barcode_page import barcode_decode, get_product_info, display_total_expenses, display_purchases, barcode_page
-from machlear_page import recipe_page
-from store_externally import register_user, login_user, save_data, load_data, authentication, auto_save, delete_account, delete_data
+from settings_page import setup_flat_name, setup_roommates, settingspage
+from fridge_page import fridge_page
+from barcode_page import barcode_page
+from recipe_page import recipepage
+from store_externally import authentication, auto_save, delete_account
+
 
 # Initialization of session state variables
 # Flat related variables
@@ -52,16 +49,43 @@ if "username" not in st.session_state:
 if "data" not in st.session_state:
     st.session_state["data"] = {}    
 
+# Only temporarly: in progress
 def overview_page():
     title = f"Overview: {st.session_state['flate_name']}" if st.session_state["flate_name"] else "Overview"
     st.title(title)
     st.write("In progress!!!")
+ 
 
+# Function to change pages
 def change_page(new_page):
     st.session_state["page"] = new_page
 
+
+# CSS for circular image
+circular_image_css = """
+<style>
+.circular-logo {
+    display: block;
+    margin: 0 auto;
+    width: 150px;
+    height: 150px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid #ddd;
+}
+</style>
+"""
+
+# Logo URL
+logo_url = "https://raw.githubusercontent.com/Livio121212/waistless/main/Eco_Wasteless_Logo_Cropped.png"
+
+# Apply CSS and display the logo
+st.sidebar.markdown(circular_image_css, unsafe_allow_html=True)
+st.sidebar.markdown(f'<img src="{logo_url}" class="circular-logo">', unsafe_allow_html=True)
+
 # Display of the main page
 if st.session_state["logged_in"]:
+
     # Sidebar navigation without account selection
     st.sidebar.title("Navigation")
     if st.sidebar.button("Overview"):
@@ -79,6 +103,7 @@ if st.session_state["logged_in"]:
         st.session_state["username"] = None
         st.session_state["data"] = {}
 
+
     # Page display logic for the selected page
     if st.session_state["page"] == "overview":
         overview_page()
@@ -90,7 +115,7 @@ if st.session_state["logged_in"]:
         barcode_page()
         auto_save()
     elif st.session_state["page"] == "recipes":
-        recipe_page()
+        recipepage()
         auto_save()
     elif st.session_state["page"] == "settings":
         if not st.session_state["setup_finished"]:
