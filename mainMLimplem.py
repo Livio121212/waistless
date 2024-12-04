@@ -2,7 +2,7 @@ import streamlit as st
 from settings_page import setup_flat_name, setup_roommates, settingspage
 from fridge_page import fridge_page
 from barcode_page import barcode_page
-from recipe_page import recipepage
+from machlear_page import recipepage
 from store_externally import authentication, auto_save, delete_account
 
 
