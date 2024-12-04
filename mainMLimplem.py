@@ -107,4 +107,3 @@ else:
     st.title("Wasteless")
     st.write("Please log in or register to continue.")
     authentication()
-    
