@@ -1,260 +1,249 @@
 import streamlit as st
-import pandas as pd  # Use for data manipulation and creating tables
-import requests  # Use to send API requests
-import numpy as np  # Use for numerical operations
-from sklearn.ensemble import RandomForestRegressor  # Use to train a machine learning model
-from sklearn.preprocessing import StandardScaler  # Use to scale features for ML model
-import re  # Use for regular expressions
+import requests
+import random
+import pandas as pd
+from datetime import datetime
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.preprocessing import StandardScaler
+import numpy as np
 
-# API key and endpoint URL for Spoonacular API
-API_KEY = 'a79012e4b3e1431e812d8b17bee3a4d7'  # Authentication for API access
-SPOONACULAR_URL = 'https://api.spoonacular.com/recipes/findByIngredients'  # URL to fetch recipes based on ingredients
+# API configuration
+API_KEY = 'a79012e4b3e1431e812d8b17bee3a4d7'
+SPOONACULAR_URL = 'https://api.spoonacular.com/recipes/findByIngredients'
 
-# Available cuisines and taste features for filtering and scoring recipes
-CUISINES = ["International", "Italian", "Asian", "Mexican", "Mediterranean", "American"]  # Supported cuisine types
-TASTE_FEATURES = ["Spicy", "Sweet", "Salty", "Sour", "Bitter", "Umami"]  # Flavor profiles used for scoring
+# Available cuisines for classification
+CUISINES = ["Italian", "Asian", "Mexican", "Mediterranean", "American", "International"]
 
-def train_ml_model():
-    """Train the machine learning model using user ratings and recipe data"""
-    if len(st.session_state["user_ratings"]) < 2:  # Ensure enough data exists for training
-        return None, None  # Return None if insufficient data
-
-    # Merge user ratings with recipe data for training
-    training_data = st.session_state["user_ratings"].merge(
-        st.session_state["recipe_data"],
-        on=["Recipe", "Cuisine"]  # Join on recipe name and cuisine type
-    )
-    
-    if len(training_data) < 2:  # Ensure sufficient training data after merging
-        return None, None
-    
-    # Prepare input features (X) and target variable (y)
-    X = training_data[TASTE_FEATURES]  # Use taste features for training
-    y = training_data["Rating"]  # Target variable is the user rating
-    
-    # Scale input features for better model performance
-    scaler = StandardScaler()
-    X_scaled = scaler.fit_transform(X)
-    
-    # Train a Random Forest Regressor
-    model = RandomForestRegressor(n_estimators=100, random_state=42)
-    model.fit(X_scaled, y)  # Fit the model on scaled features and target ratings
-    
-    return model, scaler  # Return trained model and scaler for prediction
-
+# Initialize session state variables
 def initialize_session_state():
-    """Initialize all required session state variables"""
-    if "preferences_set" not in st.session_state:
-        st.session_state["preferences_set"] = False  # Track if preferences are set
-    if "recipe_data" not in st.session_state:
-        st.session_state["recipe_data"] = pd.DataFrame(columns=[
-            "Recipe", "Cuisine"] + TASTE_FEATURES  # Columns for storing recipe data
-        )
-    if "user_ratings" not in st.session_state:
-        st.session_state["user_ratings"] = pd.DataFrame(columns=["Recipe", "Rating", "Cuisine"])  # Store user ratings
-    if "ml_model" not in st.session_state:
-        st.session_state["ml_model"] = None  # Placeholder for trained model
-    if "scaler" not in st.session_state:
-        st.session_state["scaler"] = None  # Placeholder for scaler
+    if "inventory" not in st.session_state:
+        st.session_state["inventory"] = {
+            "Tomato": {"Quantity": 5, "Unit": "gram", "Price": 3.0},
+            "Banana": {"Quantity": 3, "Unit": "gram", "Price": 5.0},
+            "Onion": {"Quantity": 2, "Unit": "piece", "Price": 1.5},
+            "Garlic": {"Quantity": 3, "Unit": "clove", "Price": 0.5},
+            "Olive Oil": {"Quantity": 1, "Unit": "liter", "Price": 8.0},
+        }
+    if "roommates" not in st.session_state:
+        st.session_state["roommates"] = ["Bilbo", "Frodo", "Gandalf der Weise"]
+    if "selected_user" not in st.session_state:
+        st.session_state["selected_user"] = None
+    if "recipe_suggestions" not in st.session_state:
+        st.session_state["recipe_suggestions"] = []
+    if "recipe_links" not in st.session_state:
+        st.session_state["recipe_links"] = {}
+    if "selected_recipe" not in st.session_state:
+        st.session_state["selected_recipe"] = None
+    if "selected_recipe_link" not in st.session_state:
+        st.session_state["selected_recipe_link"] = None
+    if "cooking_history" not in st.session_state:
+        st.session_state["cooking_history"] = []
+    # New ML-related session state variables
     if "user_preferences" not in st.session_state:
-        st.session_state["user_preferences"] = {taste: 3 for taste in TASTE_FEATURES}  # Default taste preferences
-    if "selected_cuisine" not in st.session_state:
-        st.session_state["selected_cuisine"] = "International"  # Default cuisine selection
-    if "ingredients_input" not in st.session_state:
-        st.session_state["ingredients_input"] = ""  # Placeholder for user-entered ingredients
+        st.session_state["user_preferences"] = {}
+    if "ml_models" not in st.session_state:
+        st.session_state["ml_models"] = {}
+    if "recipe_features" not in st.session_state:
+        st.session_state["recipe_features"] = pd.DataFrame()
 
-def get_recipes(ingredients, cuisine):
-    """Fetch recipes from the API based on given ingredients and selected cuisine"""
+def train_user_model(user):
+    """Train ML model for a specific user based on their ratings"""
+    if user not in st.session_state["user_preferences"]:
+        st.session_state["user_preferences"][user] = pd.DataFrame(columns=["Recipe", "Cuisine", "Rating"])
+        return None
+
+    user_data = st.session_state["user_preferences"][user]
+    if len(user_data) < 2:  # Need at least 2 ratings to train
+        return None
+
+    # Prepare features for training
+    X = pd.get_dummies(user_data["Cuisine"])
+    y = user_data["Rating"]
+
+    # Train model
+    model = RandomForestRegressor(n_estimators=100, random_state=42)
+    model.fit(X, y)
+    
+    return model
+
+def get_recipe_cuisine(recipe_id):
+    """Get cuisine type for a recipe from Spoonacular API"""
     try:
-        # Set query parameters for API request
-        params = {
-            "ingredients": ",".join(ingredients),  # Combine ingredients into a comma-separated string
-            "number": 10,  # Number of recipes to fetch
-            "apiKey": API_KEY  # API key for authentication
-        }
-        response = requests.get(SPOONACULAR_URL, params=params)  # Send API request
-        response.raise_for_status()  # Raise exception for HTTP errors
-        recipes = response.json()  # Parse response as JSON
-        
-        filtered_recipes = []
-        for recipe in recipes:  # Iterate over returned recipes
-            recipe_id = recipe.get("id")  # Extract recipe ID
-            title = recipe.get("title")  # Extract recipe title
-            
-            if not recipe_id or not title:  # Skip recipes with missing information
-                continue
-                
-            # Fetch detailed recipe information
-            detailed_url = f"https://api.spoonacular.com/recipes/{recipe_id}/information"
-            detailed_response = requests.get(detailed_url, params={"apiKey": API_KEY})  # Send API request
-            detailed_response.raise_for_status()  # Raise exception for HTTP errors
-            recipe_details = detailed_response.json()  # Parse response as JSON
-            
-            # Extract and filter by cuisine if specified
-            recipe_cuisine = recipe_details.get("cuisines", ["International"])[0] if recipe_details.get("cuisines") else "International"
-            if cuisine != "International" and recipe_cuisine != cuisine:
-                continue
-                
-            # Append detailed recipe data
-            recipe["cuisine"] = recipe_cuisine
-            recipe["details"] = recipe_details
-            filtered_recipes.append(recipe)
-            
-        return filtered_recipes  # Return the list of filtered recipes
-    except requests.RequestException as e:  # Handle API request errors
-        st.error(f"Error fetching recipes: {str(e)}")  # Display error message
-        return []
+        url = f"https://api.spoonacular.com/recipes/{recipe_id}/information"
+        response = requests.get(url, params={"apiKey": API_KEY})
+        if response.status_code == 200:
+            data = response.json()
+            cuisines = data.get("cuisines", [])
+            return cuisines[0] if cuisines else "International"
+    except:
+        return "International"
+    return "International"
 
-def predict_recipe_score(recipe_data):
-    """Calculate a recipe score using the trained ML model or fallback to taste similarity"""
-    features = np.array([[
-        recipe_data[taste] for taste in TASTE_FEATURES  # Extract feature values for prediction
-    ]])
-    
-    # Use the trained model if available
-    if st.session_state["ml_model"] is not None and st.session_state["scaler"] is not None:
-        features_scaled = st.session_state["scaler"].transform(features)  # Scale features
-        return st.session_state["ml_model"].predict(features_scaled)[0]  # Predict and return score
-    
-    # Fallback to similarity-based scoring
-    taste_similarity = sum(
-        1 - abs(recipe_data[taste] - st.session_state["user_preferences"][taste]) / 4
-        for taste in TASTE_FEATURES
-    ) / len(TASTE_FEATURES)  # Calculate similarity score
-    
-    return taste_similarity * 5  # Scale score to range of 1-5
+def predict_recipe_score(recipe_cuisine, user):
+    """Predict score for a recipe based on user's preferences"""
+    if user not in st.session_state["ml_models"] or st.session_state["ml_models"][user] is None:
+        return random.uniform(3, 5)  # Return random score if no model exists
 
-def add_recipe_rating(title, cuisine, rating, recipe_data):
-    """Add or update a recipe rating and retrain the model"""
-    new_rating = pd.DataFrame([{
-        "Recipe": title,  # Recipe name
-        "Rating": rating,  # User rating
-        "Cuisine": cuisine  # Recipe cuisine type
-    }])
-    
-    # Remove existing rating if already present
-    st.session_state["user_ratings"] = st.session_state["user_ratings"][
-        st.session_state["user_ratings"]["Recipe"] != title
-    ]
-    
-    # Add new rating
-    st.session_state["user_ratings"] = pd.concat([
-        st.session_state["user_ratings"],
-        new_rating
-    ], ignore_index=True)
-    
-    # Add recipe data if not already stored
-    if title not in st.session_state["recipe_data"]["Recipe"].values:
-        new_recipe = {
-            "Recipe": title,
-            "Cuisine": cuisine,
-            **{taste: recipe_data[taste] for taste in TASTE_FEATURES}  # Include taste features
-        }
-        st.session_state["recipe_data"] = pd.concat([
-            st.session_state["recipe_data"],
-            pd.DataFrame([new_recipe])
-        ], ignore_index=True)
-    
-    # Retrain the ML model with updated ratings
-    model, scaler = train_ml_model()
-    if model is not None:  # Update model and scaler if training succeeded
-        st.session_state["ml_model"] = model
-        st.session_state["scaler"] = scaler
+    # Create feature vector for prediction
+    cuisine_features = pd.get_dummies([recipe_cuisine], columns=CUISINES)
+    return st.session_state["ml_models"][user].predict(cuisine_features)[0]
 
-def recipe_page():
-    """Main recipe recommendation page"""
-    st.title("Smart Recipe Recommendations")  # Page title
-    initialize_session_state()  # Initialize session state variables
+def get_recipes_from_inventory(selected_ingredients=None, user=None):
+    ingredients = selected_ingredients if selected_ingredients else list(st.session_state["inventory"].keys())
+    if not ingredients:
+        st.warning("Inventory is empty. Move your lazy ass to Migros!")
+        return [], {}
     
-    with st.container():
-        st.subheader("Recipe Preferences")  # Section heading for preferences
-        
-        # Dropdown to select cuisine type
-        selected_cuisine = st.selectbox(
-            "Select cuisine type:",
-            CUISINES,
-            index=CUISINES.index(st.session_state["selected_cuisine"])  # Default selection
-        )
-        st.session_state["selected_cuisine"] = selected_cuisine  # Save selected cuisine
-        
-        # Sliders for taste preferences
-        st.subheader("Your Taste Preferences")  # Section heading for taste preferences
-        preferences = {}
-        for taste in [t.lower() for t in TASTE_FEATURES]:
-            value = st.slider(
-                f"How much do you like {taste}?",  # Slider label
-                1, 5,  # Range for slider
-                st.session_state["user_preferences"][taste.capitalize()],  # Default value
-                help=f"Rate how much you enjoy {taste} flavors"
-            )
-            preferences[taste.capitalize()] = value  # Save preference
-        
-        # Update taste preferences in session state
-        st.session_state["user_preferences"] = preferences
-        st.session_state["preferences_set"] = True  # Mark preferences as set
-        
-        # Display count of rated recipes
-        n_ratings = len(st.session_state["user_ratings"])
-        if n_ratings > 0:  # Show info if ratings exist
-            st.info(f"You have rated {n_ratings} recipes. The AI model will use these ratings to improve recommendations.")
-        
-        # Text input for ingredients
-        ingredients = st.text_input(
-            "Enter ingredients (comma-separated):",  # Input label
-            value=st.session_state["ingredients_input"]  # Default value
-        )
-        st.session_state["ingredients_input"] = ingredients  # Save input
-        
-        if st.button("Check Recipes"):  # Button to fetch recipes
-            if not ingredients:  # Ensure ingredients are provided
-                st.warning("Please enter some ingredients first!")  # Show warning if empty
-                return
-                
-            ingredient_list = [i.strip() for i in ingredients.split(",")]  # Parse ingredients into list
-            recipes = get_recipes(ingredient_list, selected_cuisine)  # Fetch recipes
+    params = {
+        "ingredients": ",".join(ingredients),
+        "number": 100,
+        "ranking": 2,
+        "apiKey": API_KEY
+    }
+    
+    try:
+        response = requests.get(SPOONACULAR_URL, params=params)
+        if response.status_code == 200:
+            recipes = response.json()
+            recipe_scores = []
             
-            if recipes:  # Check if recipes were found
-                st.subheader("Recipe Recommendations")  # Section heading for recommendations
-                cols = st.columns(3)  # Create three columns to display recipes
+            for recipe in recipes:
+                cuisine = get_recipe_cuisine(recipe['id'])
+                if user:
+                    score = predict_recipe_score(cuisine, user)
+                else:
+                    score = random.uniform(3, 5)
+                recipe_scores.append((recipe, score))
+            
+            # Sort recipes by predicted score
+            recipe_scores.sort(key=lambda x: x[1], reverse=True)
+            
+            # Take top 3 recipes
+            top_recipes = recipe_scores[:3]
+            recipe_titles = []
+            recipe_links = {}
+            
+            for recipe, score in top_recipes:
+                recipe_link = f"https://spoonacular.com/recipes/{recipe['title'].replace(' ', '-')}-{recipe['id']}"
+                missed_ingredients = [item["name"] for item in recipe.get("missedIngredients", [])]
                 
-                for idx, (col, recipe) in enumerate(zip(cols, recipes[:3])):  # Display up to 3 recipes
-                    with col:
-                        title = recipe["title"]  # Recipe title
-                        cuisine = recipe["cuisine"]  # Recipe cuisine
-                        details = recipe["details"]  # Detailed recipe info
-                        
-                        st.write(f"**{title}**")  # Display recipe title
-                        st.write(f"Cuisine: {cuisine}")  # Display recipe cuisine
-                        
-                        # Calculate match score for the recipe
-                        recipe_data = {
-                            "Spicy": min(details.get("spiciness", 3), 5),
-                            "Sweet": min(details.get("sweetness", 3), 5),
-                            "Salty": min(details.get("saltiness", 3), 5),
-                            "Sour": min(details.get("sourness", 3), 5),
-                            "Bitter": min(details.get("bitterness", 3), 5),
-                            "Umami": min(details.get("savoriness", 3), 5)
-                        }
-                        score = predict_recipe_score(recipe_data)  # Predict score
-                        st.write(f"Match Score: {score:.1f}/5")  # Display match score
-                        
-                        # Rating slider
-                        rating = st.slider(
-                            "Rate this recipe:",  # Slider label
-                            1, 5,  # Range for slider
-                            3,  # Default value
-                            key=f"rating_{idx}"  # Unique key for slider
-                        )
-                        
-                        if st.button("Submit Rating", key=f"rate_{idx}"):  # Button to submit rating
-                            add_recipe_rating(title, cuisine, rating, recipe_data)  # Add/update rating
-                            st.success("Rating submitted! The AI model will use this to improve future recommendations.")  # Success message
-                        
-                        # Link to recipe
-                        recipe_url = f"https://spoonacular.com/recipes/{title.lower().replace(' ', '-')}-{recipe['id']}"
-                        st.write(f"[View Recipe]({recipe_url})")  # Display recipe link
+                recipe_titles.append(recipe['title'])
+                recipe_links[recipe['title']] = {
+                    "link": recipe_link,
+                    "missed_ingredients": missed_ingredients,
+                    "cuisine": get_recipe_cuisine(recipe['id'])
+                }
+            
+            return recipe_titles, recipe_links
+    except Exception as e:
+        st.error(f"Error fetching recipes: {str(e)}")
+    return [], {}
+
+def rate_recipe(recipe_title, recipe_link, cuisine):
+    st.subheader(f"Rate the recipe: {recipe_title}")
+    st.write(f"**{recipe_title}**: ([View Recipe]({recipe_link}))")
+    rating = st.slider("Rate with stars (1-5):", 1, 5, key=f"rating_{recipe_title}")
+    
+    if st.button("Submit rating"):
+        user = st.session_state["selected_user"]
+        if user:
+            # Add rating to cooking history
+            st.session_state["cooking_history"].append({
+                "Person": user,
+                "Recipe": recipe_title,
+                "Rating": rating,
+                "Link": recipe_link,
+                "Date": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            })
+            
+            # Update user preferences for ML
+            if user not in st.session_state["user_preferences"]:
+                st.session_state["user_preferences"][user] = pd.DataFrame(columns=["Recipe", "Cuisine", "Rating"])
+            
+            new_rating = pd.DataFrame([{
+                "Recipe": recipe_title,
+                "Cuisine": cuisine,
+                "Rating": rating
+            }])
+            
+            st.session_state["user_preferences"][user] = pd.concat([
+                st.session_state["user_preferences"][user],
+                new_rating
+            ], ignore_index=True)
+            
+            # Retrain model for user
+            st.session_state["ml_models"][user] = train_user_model(user)
+            
+            st.success(f"You have rated '{recipe_title}' with {rating} stars!")
+        else:
+            st.warning("Please select a user first.")
+
+def recipepage():
+    st.title("You think you can cook! Better take a recipe!")
+    st.subheader("Delulu is not the solulu")
+    
+    initialize_session_state()
+    
+    if st.session_state["roommates"]:
+        selected_roommate = st.selectbox("Select the roommate:", st.session_state["roommates"])
+        st.session_state["selected_user"] = selected_roommate
+        
+        st.subheader("Recipe search options")
+        search_mode = st.radio("Choose a search mode:", ("Automatic (use all inventory)", "Custom (choose ingredients)"))
+        
+        with st.form("recipe_form"):
+            if search_mode == "Custom (choose ingredients)":
+                selected_ingredients = st.multiselect("Select ingredients from inventory:", st.session_state["inventory"].keys())
             else:
-                st.warning("No recipes found for your ingredients and preferences. Try different ingredients or cuisine.")  # Show warning if no recipes found
+                selected_ingredients = None
+            
+            search_button = st.form_submit_button("Get recipe suggestions")
+            if search_button:
+                recipe_titles, recipe_links = get_recipes_from_inventory(selected_ingredients, selected_roommate)
+                st.session_state["recipe_suggestions"] = recipe_titles
+                st.session_state["recipe_links"] = recipe_links
+
+        if st.session_state["recipe_suggestions"]:
+            st.subheader("Choose a recipe to make")
+            for title in st.session_state["recipe_suggestions"]:
+                link = st.session_state["recipe_links"][title]["link"]
+                missed_ingredients = st.session_state["recipe_links"][title]["missed_ingredients"]
+                cuisine = st.session_state["recipe_links"][title]["cuisine"]
+
+                st.write(f"- **{title}** ({cuisine}): ([View Recipe]({link}))")
+                if missed_ingredients:
+                    st.write(f"  *Extra ingredients needed:* {', '.join(missed_ingredients)}")
+
+            selected_recipe = st.selectbox("Select a recipe to cook", ["Please choose..."] + st.session_state["recipe_suggestions"])
+            if selected_recipe != "Please choose...":
+                st.session_state["selected_recipe"] = selected_recipe
+                st.session_state["selected_recipe_link"] = st.session_state["recipe_links"][selected_recipe]["link"]
+                st.success(f"You have chosen to make '{selected_recipe}'!")
+                
+    else:
+        st.warning("No roommates available.")
+        return
+
+    if st.session_state["selected_recipe"] and st.session_state["selected_recipe_link"]:
+        cuisine = st.session_state["recipe_links"][st.session_state["selected_recipe"]]["cuisine"]
+        rate_recipe(
+            st.session_state["selected_recipe"],
+            st.session_state["selected_recipe_link"],
+            cuisine
+        )
+
+    if st.session_state["cooking_history"]:
+        with st.expander("Cooking History"):
+            history_data = [
+                {
+                    "Person": entry["Person"],
+                    "Recipe": entry["Recipe"],
+                    "Rating": entry["Rating"],
+                    "Date": entry["Date"]
+                }
+                for entry in st.session_state["cooking_history"]
+            ]
+            st.table(pd.DataFrame(history_data))
 
 if __name__ == "__main__":
-    recipe_page()  # Run the main page function
+    recipepage()
