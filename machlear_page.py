@@ -8,7 +8,7 @@ from sklearn.preprocessing import StandardScaler
 import numpy as np
 
 # API configuration
-API_KEY = 'a79012e4b3e1431e812d8b17bee3a4d7'
+API_KEY = '7c3d0f2a157542d9a49c93cdf50653a4'
 SPOONACULAR_URL = 'https://api.spoonacular.com/recipes/findByIngredients'
 
 # Available cuisines for classification
