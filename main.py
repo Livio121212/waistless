@@ -4,7 +4,7 @@ from fridge_page import fridge_page
 from barcode_page import barcode_page
 from recipe_page import recipepage
 from store_externally import authentication, auto_save, delete_account
-from Overview_page import Overview_page
+from Overview_page import overview_page
 
 # Initialization of session state variables
 # Flat related variables
