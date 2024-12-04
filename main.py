@@ -4,6 +4,7 @@ from fridge_page import fridge_page
 from barcode_page import barcode_page
 from recipe_page import recipepage
 from store_externally import authentication, auto_save, delete_account
+from overview_page import overview_page
 
 
 # Initialization of session state variables
@@ -49,11 +50,6 @@ if "username" not in st.session_state:
 if "data" not in st.session_state:
     st.session_state["data"] = {}    
 
-# Only temporarly: in progress
-def overview_page():
-    title = f"Overview: {st.session_state['flate_name']}" if st.session_state["flate_name"] else "Overview"
-    st.title(title)
-    st.write("In progress!!!")
  
 
 # Function to change pages
