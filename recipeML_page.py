@@ -1,8 +1,8 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime
-from .recipe_api import get_recipes_from_inventory
-from .recipe_cache import initialize_cache
+from .recipe_MLapi import get_recipes_from_inventory
+from .recipe_MLcache import initialize_cache
 from .ml_model import train_user_model
 
 def initialize_session_state():
