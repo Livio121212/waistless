@@ -45,6 +45,9 @@ def initialize_session_state():
         st.session_state["ml_models"] = {}
     if "recipe_features" not in st.session_state:
         st.session_state["recipe_features"] = pd.DataFrame()
+    # Add new session state variable for storing low-rated recipes
+    if "user_low_rated_recipes" not in st.session_state:
+        st.session_state["user_low_rated_recipes"] = {}
 
 def train_user_model(user):
     """Train ML model for a specific user based on their ratings"""
@@ -107,7 +110,14 @@ def get_recipes_from_inventory(selected_ingredients=None, user=None):
             recipes = response.json()
             recipe_scores = []
             
+            # Get user's low-rated recipes
+            user_low_rated = st.session_state["user_low_rated_recipes"].get(user, set())
+            
             for recipe in recipes:
+                # Skip recipes that were rated 2 or lower by this user
+                if recipe['title'] in user_low_rated:
+                    continue
+                    
                 cuisine = get_recipe_cuisine(recipe['id'])
                 if user:
                     score = predict_recipe_score(cuisine, user)
@@ -147,6 +157,17 @@ def rate_recipe(recipe_title, recipe_link, cuisine):
     if st.button("Submit rating"):
         user = st.session_state["selected_user"]
         if user:
+            # Initialize user's low-rated recipes set if it doesn't exist
+            if user not in st.session_state["user_low_rated_recipes"]:
+                st.session_state["user_low_rated_recipes"][user] = set()
+            
+            # Add to low-rated recipes if rating is 2 or lower
+            if rating <= 2:
+                st.session_state["user_low_rated_recipes"][user].add(recipe_title)
+            elif recipe_title in st.session_state["user_low_rated_recipes"].get(user, set()):
+                # Remove from low-rated if the rating is improved above 2
+                st.session_state["user_low_rated_recipes"][user].remove(recipe_title)
+            
             # Add rating to cooking history
             st.session_state["cooking_history"].append({
                 "Person": user,
