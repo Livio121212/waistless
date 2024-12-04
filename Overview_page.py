@@ -1,58 +1,66 @@
 import streamlit as st
 import pandas as pd
-import plotly.express as px
 
+# Ensure session state keys are initialized
 def ensure_roommate_entries():
-    for mate in st.session_state["roommates"]:
-        if mate not in st.session_state["expenses"]:
-            st.session_state["expenses"][mate] = 0.0
-        if mate not in st.session_state["purchases"]:
-            st.session_state["purchases"][mate] = []
-        if mate not in st.session_state["consumed"]:
-            st.session_state["consumed"][mate] = []
+    if "roommates" not in st.session_state:
+        st.session_state["roommates"] = ["Livio", "Flurin", "Anderin"]  # Example data
+    if "expenses" not in st.session_state:
+        st.session_state["expenses"] = {mate: 0.0 for mate in st.session_state["roommates"]}
+    if "purchases" not in st.session_state:
+        st.session_state["purchases"] = {mate: [] for mate in st.session_state["roommates"]}
+    if "consumed" not in st.session_state:
+        st.session_state["consumed"] = {mate: [] for mate in st.session_state["roommates"]}
 
-# Main overview function
+# Overview page function
 def overview_page():
-    st.title("Flatmate Overview")
-
+    # Ensure all session state keys exist
     ensure_roommate_entries()
 
-    # Monthly Expenses Chart
-    st.subheader("Total Expenses by Flatmate")
+    # Title
+    st.title("Flatmate Overview")
+
+    # Chart 1: Total Expenses by Flatmate (Bar Chart)
+    st.subheader("1. Total Expenses by Flatmate")
     expense_df = pd.DataFrame(list(st.session_state["expenses"].items()), columns=["Roommate", "Total Expenses (CHF)"])
     st.bar_chart(expense_df.set_index("Roommate"))
 
-    # Purchases by Roommate
-    st.subheader("Purchases Breakdown")
-    purchase_data = []
-    for mate, purchases in st.session_state["purchases"].items():
-        for purchase in purchases:
-            purchase["Roommate"] = mate
-            purchase_data.append(purchase)
-
-    if purchase_data:
-        purchase_df = pd.DataFrame(purchase_data)
-        fig = px.bar(purchase_df, x="Roommate", y="Price", color="Product", title="Purchases by Product")
-        st.plotly_chart(fig)
+    # Chart 2: Monthly Purchases by Flatmate (Line Chart)
+    st.subheader("2. Monthly Purchases by Flatmate")
+    purchases_data = []
+    for mate in st.session_state["roommates"]:
+        purchases_data.extend([
+            {"Roommate": mate, "Date": pd.to_datetime(purchase["Date"]).strftime('%Y-%m'), "Total": purchase["Price"]}
+            for purchase in st.session_state["purchases"][mate]
+        ])
+    purchases_df = pd.DataFrame(purchases_data)
+    if not purchases_df.empty:
+        monthly_purchases = purchases_df.groupby(["Date", "Roommate"])["Total"].sum().unstack(fill_value=0)
+        st.line_chart(monthly_purchases)
     else:
-        st.write("No purchase data available.")
+        st.write("No purchases data available.")
 
-    # Consumption Trends
-    st.subheader("Consumption Trends Over Time")
-    consumption_data = []
-    for mate, consumptions in st.session_state["consumed"].items():
-        for consumption in consumptions:
-            consumption["Roommate"] = mate
-            consumption_data.append(consumption)
+    # Chart 3: Total Consumption by Flatmate (Pie Chart)
+    st.subheader("3. Total Consumption by Flatmate")
+    consumption_data = {mate: sum([item["Price"] for item in st.session_state["consumed"][mate]])
+                        for mate in st.session_state["roommates"]}
+    consumption_df = pd.DataFrame(list(consumption_data.items()), columns=["Roommate", "Total Consumption (CHF)"])
+    st.write(consumption_df)
+    st.pyplot(consumption_df.set_index("Roommate").plot.pie(
+        y="Total Consumption (CHF)", autopct="%.1f%%", figsize=(6, 6), legend=False).get_figure())
 
-    if consumption_data:
-        consumption_df = pd.DataFrame(consumption_data)
-        consumption_df["Date"] = pd.to_datetime(consumption_df["Date"])
-        fig = px.line(consumption_df, x="Date", y="Price", color="Roommate", title="Consumption Trends Over Time")
-        st.plotly_chart(fig)
+    # Chart 4: Inventory Summary (Stacked Bar Chart)
+    st.subheader("4. Inventory Value by Roommate")
+    inventory_data = []
+    for mate in st.session_state["roommates"]:
+        for purchase in st.session_state["purchases"][mate]:
+            inventory_data.append({"Roommate": mate, "Product": purchase["Product"], "Price": purchase["Price"]})
+    inventory_df = pd.DataFrame(inventory_data)
+    if not inventory_df.empty:
+        inventory_summary = inventory_df.groupby(["Roommate", "Product"])["Price"].sum().unstack(fill_value=0)
+        st.bar_chart(inventory_summary)
     else:
-        st.write("No consumption data available.")
+        st.write("No inventory data available.")
 
-# Call the function if running standalone (for testing)
-if __name__ == "__main__":
-    overview_page()
+# Call the function to render the page
+overview_page()
