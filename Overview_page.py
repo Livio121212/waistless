@@ -1,5 +1,8 @@
 import streamlit as st
 import pandas as pd
+import matplotlib
+matplotlib.use("Agg")
+import plotly.express as px
 
 # Ensure session state keys are initialized
 def ensure_roommate_entries():
@@ -40,14 +43,19 @@ def overview_page():
     else:
         st.write("No purchases data available.")
 
-    # Chart 3: Total Consumption by Flatmate (Pie Chart)
+    # Chart 3: Total Consumption by Flatmate
     st.subheader("3. Total Consumption by Flatmate")
     consumption_data = {mate: sum([item["Price"] for item in st.session_state["consumed"][mate]])
                         for mate in st.session_state["roommates"]}
     consumption_df = pd.DataFrame(list(consumption_data.items()), columns=["Roommate", "Total Consumption (CHF)"])
-    st.write(consumption_df)
-    st.pyplot(consumption_df.set_index("Roommate").plot.pie(
-        y="Total Consumption (CHF)", autopct="%.1f%%", figsize=(6, 6), legend=False).get_figure())
+
+    if not consumption_df.empty:
+        # Use Plotly to create a pie chart
+        fig = px.pie(consumption_df, names="Roommate", values="Total Consumption (CHF)",
+                    title="Total Consumption by Flatmate", hole=0.3)
+        st.plotly_chart(fig)
+    else:
+        st.write("No consumption data available.")
 
     # Chart 4: Inventory Summary (Stacked Bar Chart)
     st.subheader("4. Inventory Value by Roommate")
