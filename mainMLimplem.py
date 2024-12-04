@@ -2,9 +2,15 @@ import streamlit as st
 from settings_page import setup_flat_name, setup_roommates, settingspage
 from fridge_page import fridge_page
 from barcode_page import barcode_page
-from machlear_page import recipepage
 from store_externally import authentication, auto_save, delete_account
 
+# Import the new recipe module components
+from recipe_page import recipepage
+from recipe_cache import initialize_cache
+from recipe_config import CUISINES, TASTE_FEATURES
+
+# Initialize cache when app starts
+initialize_cache()
 
 # Initialization of session state variables
 # Flat related variables
@@ -29,7 +35,7 @@ if "purchases" not in st.session_state:
 if "consumed" not in st.session_state:
     st.session_state["consumed"] = {mate: [] for mate in st.session_state["roommates"]}
 
-# Recipe related variables
+# Recipe related variables - now using constants from recipe_config
 if "recipe_suggestions" not in st.session_state:
     st.session_state["recipe_suggestions"] = []
 if "selected_recipe" not in st.session_state:
@@ -40,6 +46,10 @@ if "selected_recipe_link" not in st.session_state:
     st.session_state["selected_recipe_link"] = None
 if "cooking_history" not in st.session_state:
     st.session_state["cooking_history"] = []
+if "user_preferences" not in st.session_state:
+    st.session_state["user_preferences"] = {
+        taste: 3 for taste in TASTE_FEATURES
+    }
 
 # Login-related variables
 if "logged_in" not in st.session_state:
@@ -49,17 +59,13 @@ if "username" not in st.session_state:
 if "data" not in st.session_state:
     st.session_state["data"] = {}    
 
-# Only temporarly: in progress
 def overview_page():
     title = f"Overview: {st.session_state['flate_name']}" if st.session_state["flate_name"] else "Overview"
     st.title(title)
     st.write("In progress!!!")
- 
 
-# Function to change pages
 def change_page(new_page):
     st.session_state["page"] = new_page
-
 
 # CSS for circular image
 circular_image_css = """
@@ -85,7 +91,6 @@ st.sidebar.markdown(f'<img src="{logo_url}" class="circular-logo">', unsafe_allo
 
 # Display of the main page
 if st.session_state["logged_in"]:
-
     # Sidebar navigation without account selection
     st.sidebar.title("Navigation")
     if st.sidebar.button("Overview"):
@@ -103,7 +108,6 @@ if st.session_state["logged_in"]:
         st.session_state["username"] = None
         st.session_state["data"] = {}
 
-
     # Page display logic for the selected page
     if st.session_state["page"] == "overview":
         overview_page()
@@ -115,7 +119,7 @@ if st.session_state["logged_in"]:
         barcode_page()
         auto_save()
     elif st.session_state["page"] == "recipes":
-        recipepage()
+        recipepage()  # This now uses the refactored recipe components
         auto_save()
     elif st.session_state["page"] == "settings":
         if not st.session_state["setup_finished"]:
