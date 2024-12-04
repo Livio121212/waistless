@@ -5,9 +5,9 @@ from barcode_page import barcode_page
 from store_externally import authentication, auto_save, delete_account
 
 # Import the new recipe module components
-from recipe_page import recipepage
-from recipe_cache import initialize_cache
-from recipe_config import CUISINES, TASTE_FEATURES
+from recipe_MLpage import recipepage
+from recipe_MLcache import initialize_cache
+from recipe_MLconfig import CUISINES, TASTE_FEATURES
 
 # Initialize cache when app starts
 initialize_cache()
