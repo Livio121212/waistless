@@ -161,7 +161,7 @@ def add_recipe_rating(title, cuisine, rating, recipe_data):
         st.session_state["ml_model"] = model
         st.session_state["scaler"] = scaler
 
-def recipepage():
+def recipe_page():
     """Main recipe recommendation page"""
     st.title("Smart Recipe Recommendations")  # Page title
     initialize_session_state()  # Initialize session state variables
@@ -257,4 +257,4 @@ def recipepage():
                 st.warning("No recipes found for your ingredients and preferences. Try different ingredients or cuisine.")  # Show warning if no recipes found
 
 if __name__ == "__main__":
-    recipepage()  # Run the main page function
+    recipe_page()  # Run the main page function
