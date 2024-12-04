@@ -3,19 +3,15 @@ import requests
 import random
 import pandas as pd
 from datetime import datetime
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.preprocessing import StandardScaler
-import numpy as np
 
 # API configuration
 API_KEY = 'a79012e4b3e1431e812d8b17bee3a4d7'
 SPOONACULAR_URL = 'https://api.spoonacular.com/recipes/findByIngredients'
+CUISINES = ["International", "Italian", "Asian", "Mexican", "Mediterranean", "American"]
+COURSE_TYPES = ["starter", "main course", "dessert"]
 
-# Available cuisines for classification
-CUISINES = ["Italian", "Asian", "Mexican", "Mediterranean", "American", "International"]
-
-# Initialize session state variables
 def initialize_session_state():
+    """Initialize all required session state variables"""
     if "inventory" not in st.session_state:
         st.session_state["inventory"] = {
             "Tomato": {"Quantity": 5, "Unit": "gram", "Price": 3.0},
@@ -38,63 +34,59 @@ def initialize_session_state():
         st.session_state["selected_recipe_link"] = None
     if "cooking_history" not in st.session_state:
         st.session_state["cooking_history"] = []
-    # New ML-related session state variables
     if "user_preferences" not in st.session_state:
         st.session_state["user_preferences"] = {}
     if "ml_models" not in st.session_state:
         st.session_state["ml_models"] = {}
-    if "recipe_features" not in st.session_state:
-        st.session_state["recipe_features"] = pd.DataFrame()
-    # Add new session state variable for storing low-rated recipes
     if "user_low_rated_recipes" not in st.session_state:
         st.session_state["user_low_rated_recipes"] = {}
 
-def train_user_model(user):
-    """Train ML model for a specific user based on their ratings"""
-    if user not in st.session_state["user_preferences"]:
-        st.session_state["user_preferences"][user] = pd.DataFrame(columns=["Recipe", "Cuisine", "Rating"])
-        return None
-
-    user_data = st.session_state["user_preferences"][user]
-    if len(user_data) < 2:  # Need at least 2 ratings to train
-        return None
-
-    # Prepare features for training
-    X = pd.get_dummies(user_data["Cuisine"])
-    y = user_data["Rating"]
-
-    # Train model
-    model = RandomForestRegressor(n_estimators=100, random_state=42)
-    model.fit(X, y)
-    
-    return model
-
-def get_recipe_cuisine(recipe_id):
-    """Get cuisine type for a recipe from Spoonacular API"""
+def get_recipe_details(recipe_id):
+    """Get detailed recipe information from Spoonacular API"""
     try:
         url = f"https://api.spoonacular.com/recipes/{recipe_id}/information"
         response = requests.get(url, params={"apiKey": API_KEY})
         if response.status_code == 200:
-            data = response.json()
-            cuisines = data.get("cuisines", [])
-            return cuisines[0] if cuisines else "International"
+            return response.json()
     except:
-        return "International"
+        return None
+    return None
+
+def get_recipe_course_type(recipe_id):
+    """Get course type for a recipe"""
+    details = get_recipe_details(recipe_id)
+    if details:
+        dish_types = details.get("dishTypes", [])
+        if "appetizer" in dish_types or "starter" in dish_types:
+            return "starter"
+        elif "dessert" in dish_types:
+            return "dessert"
+        else:
+            return "main course"
+    return "main course"
+
+def get_recipe_cuisine(recipe_id):
+    """Get cuisine type for a recipe"""
+    details = get_recipe_details(recipe_id)
+    if details:
+        cuisines = details.get("cuisines", [])
+        return cuisines[0] if cuisines else "International"
     return "International"
 
-def predict_recipe_score(recipe_cuisine, user):
+def predict_recipe_score(cuisine, user):
     """Predict score for a recipe based on user's preferences"""
     if user not in st.session_state["ml_models"] or st.session_state["ml_models"][user] is None:
         return random.uniform(3, 5)  # Return random score if no model exists
 
     # Create feature vector for prediction
-    cuisine_features = pd.get_dummies([recipe_cuisine], columns=CUISINES)
+    cuisine_features = pd.get_dummies([cuisine], columns=CUISINES)
     return st.session_state["ml_models"][user].predict(cuisine_features)[0]
 
-def get_recipes_from_inventory(selected_ingredients=None, user=None):
+def get_recipes_from_inventory(selected_ingredients=None, user=None, course_type=None):
+    """Fetch and filter recipes from Spoonacular API"""
     ingredients = selected_ingredients if selected_ingredients else list(st.session_state["inventory"].keys())
     if not ingredients:
-        st.warning("Inventory is empty. Move your lazy ass to Migros!")
+        st.warning("Inventory is empty!")
         return [], {}
     
     params = {
@@ -118,11 +110,14 @@ def get_recipes_from_inventory(selected_ingredients=None, user=None):
                 if recipe['title'] in user_low_rated:
                     continue
                     
+                # Filter by course type if specified
+                if course_type:
+                    recipe_course = get_recipe_course_type(recipe['id'])
+                    if recipe_course != course_type:
+                        continue
+                
                 cuisine = get_recipe_cuisine(recipe['id'])
-                if user:
-                    score = predict_recipe_score(cuisine, user)
-                else:
-                    score = random.uniform(3, 5)
+                score = predict_recipe_score(cuisine, user)
                 recipe_scores.append((recipe, score))
             
             # Sort recipes by predicted score
@@ -150,56 +145,65 @@ def get_recipes_from_inventory(selected_ingredients=None, user=None):
     return [], {}
 
 def rate_recipe(recipe_title, recipe_link, cuisine):
-    st.subheader(f"Rate the recipe: {recipe_title}")
-    st.write(f"**{recipe_title}**: ([View Recipe]({recipe_link}))")
-    rating = st.slider("Rate with stars (1-5):", 1, 5, key=f"rating_{recipe_title}")
+    """Allow user to rate a recipe and update ML model"""
+    st.write("---")
+    st.subheader("Rate this recipe")
     
-    if st.button("Submit rating"):
-        user = st.session_state["selected_user"]
-        if user:
-            # Initialize user's low-rated recipes set if it doesn't exist
-            if user not in st.session_state["user_low_rated_recipes"]:
-                st.session_state["user_low_rated_recipes"][user] = set()
+    rating = st.slider("How would you rate this recipe?", 1, 5, 3)
+    
+    if st.button("Submit Rating"):
+        # Add to cooking history
+        history_entry = {
+            "Person": st.session_state["selected_user"],
+            "Recipe": recipe_title,
+            "Rating": rating,
+            "Date": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        }
+        st.session_state["cooking_history"].append(history_entry)
+        
+        # Update user preferences
+        if st.session_state["selected_user"] not in st.session_state["user_preferences"]:
+            st.session_state["user_preferences"][st.session_state["selected_user"]] = pd.DataFrame(
+                columns=["Recipe", "Cuisine", "Rating"]
+            )
+        
+        # Add rating to user preferences
+        new_rating = pd.DataFrame([{
+            "Recipe": recipe_title,
+            "Cuisine": cuisine,
+            "Rating": rating
+        }])
+        
+        st.session_state["user_preferences"][st.session_state["selected_user"]] = pd.concat([
+            st.session_state["user_preferences"][st.session_state["selected_user"]],
+            new_rating
+        ], ignore_index=True)
+        
+        # Track low-rated recipes
+        if rating <= 2:
+            if st.session_state["selected_user"] not in st.session_state["user_low_rated_recipes"]:
+                st.session_state["user_low_rated_recipes"][st.session_state["selected_user"]] = set()
+            st.session_state["user_low_rated_recipes"][st.session_state["selected_user"]].add(recipe_title)
+        
+        # Retrain ML model
+        user_data = st.session_state["user_preferences"][st.session_state["selected_user"]]
+        if len(user_data) >= 2:  # Need at least 2 ratings to train
+            X = pd.get_dummies(user_data["Cuisine"])
+            y = user_data["Rating"]
             
-            # Add to low-rated recipes if rating is 2 or lower
-            if rating <= 2:
-                st.session_state["user_low_rated_recipes"][user].add(recipe_title)
-            elif recipe_title in st.session_state["user_low_rated_recipes"].get(user, set()):
-                # Remove from low-rated if the rating is improved above 2
-                st.session_state["user_low_rated_recipes"][user].remove(recipe_title)
+            from sklearn.ensemble import RandomForestRegressor
+            model = RandomForestRegressor(n_estimators=100, random_state=42)
+            model.fit(X, y)
             
-            # Add rating to cooking history
-            st.session_state["cooking_history"].append({
-                "Person": user,
-                "Recipe": recipe_title,
-                "Rating": rating,
-                "Link": recipe_link,
-                "Date": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            })
-            
-            # Update user preferences for ML
-            if user not in st.session_state["user_preferences"]:
-                st.session_state["user_preferences"][user] = pd.DataFrame(columns=["Recipe", "Cuisine", "Rating"])
-            
-            new_rating = pd.DataFrame([{
-                "Recipe": recipe_title,
-                "Cuisine": cuisine,
-                "Rating": rating
-            }])
-            
-            st.session_state["user_preferences"][user] = pd.concat([
-                st.session_state["user_preferences"][user],
-                new_rating
-            ], ignore_index=True)
-            
-            # Retrain model for user
-            st.session_state["ml_models"][user] = train_user_model(user)
-            
-            st.success(f"You have rated '{recipe_title}' with {rating} stars!")
-        else:
-            st.warning("Please select a user first.")
+            st.session_state["ml_models"][st.session_state["selected_user"]] = model
+        
+        st.success("Rating submitted successfully!")
+        st.session_state["selected_recipe"] = None
+        st.session_state["selected_recipe_link"] = None
+        st.experimental_rerun()
 
 def recipepage():
+    """Main recipe recommendation page"""
     st.title("You think you can cook! Better take a recipe!")
     st.subheader("Delulu is not the solulu")
     
@@ -210,6 +214,14 @@ def recipepage():
         st.session_state["selected_user"] = selected_roommate
         
         st.subheader("Recipe search options")
+        
+        # Course type selection
+        course_type = st.selectbox(
+            "What type of dish would you like?",
+            COURSE_TYPES,
+            key="course_type_selector"
+        )
+        
         search_mode = st.radio("Choose a search mode:", ("Automatic (use all inventory)", "Custom (choose ingredients)"))
         
         with st.form("recipe_form"):
@@ -220,7 +232,11 @@ def recipepage():
             
             search_button = st.form_submit_button("Get recipe suggestions")
             if search_button:
-                recipe_titles, recipe_links = get_recipes_from_inventory(selected_ingredients, selected_roommate)
+                recipe_titles, recipe_links = get_recipes_from_inventory(
+                    selected_ingredients, 
+                    selected_roommate,
+                    course_type
+                )
                 st.session_state["recipe_suggestions"] = recipe_titles
                 st.session_state["recipe_links"] = recipe_links
 
