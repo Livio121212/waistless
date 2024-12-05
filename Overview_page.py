@@ -43,11 +43,20 @@ def overview_page():
     purchases_df = pd.DataFrame(purchases_data)
     if not purchases_df.empty:
         purchases_df["Date"] = pd.to_datetime(purchases_df["Date"], format= '%Y-%m', errors= "coerce")
+        st.write("Formatted purchases_df:", purchases_df)
+
         purchases_df = purchases_df.sort_values("Date")
+
         # Group by Date and Roommate, summing prices
         monthly_purchases = purchases_df.groupby(["Date", "Roommate"])["Total"].sum().unstack(fill_value=0)
         # Debugging grouped data
         st.write("Debugging monthly_purchases DataFrame:", monthly_purchases)
+
+        # Check if there's any data to plot
+        if not monthly_purchases.empty:
+            st.line_chart(monthly_purchases)
+        else:
+            st.write("No data available for the line chart.")
 
         st.line_chart(monthly_purchases)
     else:
