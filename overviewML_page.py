@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-import plotly.express as px  # Using Plotly for enhanced charting
+import plotly.express as px
 
 def overview_page():
     st.title("Flatmate Overview")
