@@ -50,15 +50,19 @@ def overview_page():
 
         # Group by Date and Roommate, summing prices
         monthly_purchases = purchases_df.groupby(["Date", "Roommate"])["Total"].sum().unstack(fill_value=0)
-        # Debugging grouped data
-        st.write("Debugging monthly_purchases DataFrame:", monthly_purchases)
+        
+        # Debug the DataFrame
+        st.write("Final monthly_purchases DataFrame before plotting:", monthly_purchases)
 
         # Check if there's any data to plot
         if not monthly_purchases.empty:
-            monthly_purchases.reset_index(inplace=True)
-            monthly_purchases.set_index('Date', inplace=True)
-            fig2 = px.line(monthly_purchases, x=monthly_purchases.index, y=monthly_purchases.columns,
-                           title="Monthly Purchases by Flatmate")
+            fig2 = px.line(
+                monthly_purchases.reset_index(), 
+                x="Date", 
+                y=monthly_purchases.columns,
+                title="Monthly Purchases by Flatmate",
+                labels={"value": "Total Purchases (CHF)", "Date": "Month"},
+            )
             st.plotly_chart(fig2)
         else:
             st.write("No data available for the line chart.")
