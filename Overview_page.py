@@ -28,43 +28,39 @@ def overview_page():
 
     # Chart 2: Monthly Purchases by Flatmate (Line Chart)
     st.subheader("2. Monthly Purchases by Flatmate")
-    purchases_data = [] 
-    for mate in st.session_state["roommates"]:
-        purchases_data.extend([ 
-            {"Roommate": mate, 
-             "Date": pd.to_datetime(purchase.get("Date", "1900-01-01")).strftime('%Y-%m'), 
-             "Total": purchase.get("Price", 0)}
-            for purchase in st.session_state["purchases"][mate]
-            if "Date" in purchase and "Price" in purchase
-        ])
-    # Debugging purchases_data
-    st.write("Debugging purchases_data:", purchases_data)
 
+    # Collect and process purchase data
+    purchases_data = []
+    for mate in st.session_state["roommates"]:
+        purchases_data.extend([
+            {
+                "Roommate": mate,
+                "Date": purchase.get("Date", "1900-01-01"),  # Fetch date or use default
+                "Total": purchase.get("Price", 0)           # Fetch price or use 0
+            }
+            for purchase in st.session_state["purchases"][mate]
+            if "Date" in purchase and "Price" in purchase  # Ensure both keys exist
+        ])
+
+    # Convert purchase data into a DataFrame
     purchases_df = pd.DataFrame(purchases_data)
 
     if not purchases_df.empty:
-        purchases_df["Date"] = pd.to_datetime(purchases_df["Date"], format= '%Y-%m', errors= "coerce")
-        st.write("Formatted purchases_df:", purchases_df)
+        # Ensure Date is in proper datetime format
+        purchases_df["Date"] = pd.to_datetime(purchases_df["Date"], format="%Y-%m", errors="coerce")
+        purchases_df = purchases_df.dropna(subset=["Date"])  # Drop rows with invalid dates
 
-        purchases_df = purchases_df.sort_values("Date")
-
-        # Group by Date and Roommate, summing prices
+        # Group data by Date and Roommate, summing up total purchases
         monthly_purchases = purchases_df.groupby(["Date", "Roommate"])["Total"].sum().unstack(fill_value=0)
-        
-        # Debug the DataFrame
-        st.write("Final monthly_purchases DataFrame before plotting:", monthly_purchases)
 
-        # Convert the data to a long format for Plotly
+        # Transform data into a long format suitable for plotting
         monthly_purchases_long = monthly_purchases.reset_index().melt(
             id_vars=["Date"], 
             var_name="Roommate", 
             value_name="Total Purchases (CHF)"
         )
 
-        # Debugging long format data
-        st.write("Data for Plotly (long format):", monthly_purchases_long)
-
-        # Plot the line chart using Plotly
+        # Plot the data using Plotly
         if not monthly_purchases_long.empty:
             fig2 = px.line(
                 monthly_purchases_long,
@@ -73,13 +69,11 @@ def overview_page():
                 color="Roommate",
                 title="Monthly Purchases by Flatmate",
                 labels={"Total Purchases (CHF)": "Total Purchases (CHF)", "Date": "Month"},
-                markers=True  # Add markers to enhance readability
+                markers=True,  # Add markers for better visibility
             )
             st.plotly_chart(fig2)
         else:
             st.write("No data available for the line chart.")
-
-        
     else:
         st.write("No purchases data available.")
 
