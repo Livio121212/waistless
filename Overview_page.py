@@ -30,12 +30,14 @@ def overview_page():
     purchases_data = []
     for mate in st.session_state["roommates"]:
         purchases_data.extend([
-            {"Roommate": mate, "Date": pd.to_datetime(purchase["Date"]).strftime('%Y-%m'), "Total": purchase["Price"]}
+            {"Roommate": mate, 
+             "Date": pd.to_datetime(purchase["Date"]).strftime('%Y-%m'), 
+             "Total": purchase["Price"]}
             for purchase in st.session_state["purchases"][mate]
         ])
     purchases_df = pd.DataFrame(purchases_data)
     if not purchases_df.empty:
-        purchases_df["Date"] = pd.to_datetime(purchases_df["Date"])
+        purchases_df["Date"] = pd.to_datetime(purchases_df["Date"], format='%Y-%m')
         purchases_df = purchases_df.sort_values("Date")
         monthly_purchases = purchases_df.groupby(["Date", "Roommate"])["Total"].sum().unstack(fill_value=0)
         st.line_chart(monthly_purchases)
