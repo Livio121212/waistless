@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px  # Using Plotly for enhanced charting
+from datetime import datetime
 
 # Initialize session state keys
 if "roommates" not in st.session_state:
@@ -26,6 +27,7 @@ def overview_page():
     else:
         st.write("No expense data available.")
 
+
     # Chart 2: Monthly Purchases by Flatmate (Line Chart)
     st.subheader("2. Monthly Purchases by Flatmate")
 
@@ -45,38 +47,43 @@ def overview_page():
     purchases_df = pd.DataFrame(purchases_data)
 
     if not purchases_df.empty:
-        # Step 3: Convert Date to datetime and truncate to "Year-Month"
+        # Step 3: Convert Date to datetime
         purchases_df["Date"] = pd.to_datetime(purchases_df["Date"], errors="coerce")  # Parse full datetime
-        purchases_df["Date"] = purchases_df["Date"].dt.to_period("M").dt.to_timestamp()  # Convert to "Year-Month"
 
-        # Drop rows with invalid dates
-        purchases_df = purchases_df.dropna(subset=["Date"])
+        # Step 4: Filter to include only the current month and year
+        current_month = datetime.now().month
+        current_year = datetime.now().year
+        purchases_df = purchases_df[
+            (purchases_df["Date"].dt.month == current_month) & 
+            (purchases_df["Date"].dt.year == current_year)
+        ]
 
-        # Step 4: Group by Date and Roommate
-        monthly_purchases = purchases_df.groupby(["Date", "Roommate"])["Total"].sum().unstack(fill_value=0)
+        # Step 5: Group by Date and Roommate (Day-level grouping within the month)
+        daily_purchases = purchases_df.groupby(["Date", "Roommate"])["Total"].sum().unstack(fill_value=0)
 
-        # Step 5: Reshape for Plotly
-        monthly_purchases_long = monthly_purchases.reset_index().melt(
-        id_vars=["Date"], 
-        var_name="Roommate", 
-        value_name="Total Purchases (CHF)"
+        # Step 6: Reshape for Plotly
+        daily_purchases_long = daily_purchases.reset_index().melt(
+            id_vars=["Date"], 
+            var_name="Roommate", 
+            value_name="Total Purchases (CHF)"
         )
 
-        # Step 6: Plot
-        if not monthly_purchases_long.empty:
+        # Step 7: Plot
+        if not daily_purchases_long.empty:
             fig2 = px.line(
-                monthly_purchases_long,
+                daily_purchases_long,
                 x="Date",
                 y="Total Purchases (CHF)",
                 color="Roommate",
-                title="Monthly Purchases by Flatmate",
+                title=f"Daily Purchases by Flatmate - {datetime.now().strftime('%B %Y')}",
                 markers=True,  # Add markers for better visibility
             )
             st.plotly_chart(fig2)
         else:
-            st.write("No data available for the line chart.")
+            st.write("No data available for the current month.")
     else:
         st.write("No purchases data available.")
+
 
 
     # Chart 3: Total Consumption by Flatmate (Pie Chart)
