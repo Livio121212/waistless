@@ -45,18 +45,21 @@ def overview_page():
     purchases_df = pd.DataFrame(purchases_data)
 
     if not purchases_df.empty:
-        # Step 3: Convert Date to datetime and clean up
-        purchases_df["Date"] = pd.to_datetime(purchases_df["Date"], format="%Y-%m", errors="coerce")
-        purchases_df = purchases_df.dropna(subset=["Date"])  # Drop rows with invalid dates
+        # Step 3: Convert Date to datetime and truncate to "Year-Month"
+        purchases_df["Date"] = pd.to_datetime(purchases_df["Date"], errors="coerce")  # Parse full datetime
+        purchases_df["Date"] = purchases_df["Date"].dt.to_period("M").dt.to_timestamp()  # Convert to "Year-Month"
+
+        # Drop rows with invalid dates
+        purchases_df = purchases_df.dropna(subset=["Date"])
 
         # Step 4: Group by Date and Roommate
         monthly_purchases = purchases_df.groupby(["Date", "Roommate"])["Total"].sum().unstack(fill_value=0)
 
         # Step 5: Reshape for Plotly
         monthly_purchases_long = monthly_purchases.reset_index().melt(
-            id_vars=["Date"], 
-            var_name="Roommate", 
-            value_name="Total Purchases (CHF)"
+        id_vars=["Date"], 
+        var_name="Roommate", 
+        value_name="Total Purchases (CHF)"
         )
 
         # Step 6: Plot
@@ -67,7 +70,6 @@ def overview_page():
                 y="Total Purchases (CHF)",
                 color="Roommate",
                 title="Monthly Purchases by Flatmate",
-                labels={"Total Purchases (CHF)": "Total Purchases (CHF)", "Date": "Month"},
                 markers=True,  # Add markers for better visibility
             )
             st.plotly_chart(fig2)
@@ -75,6 +77,7 @@ def overview_page():
             st.write("No data available for the line chart.")
     else:
         st.write("No purchases data available.")
+
 
     # Chart 3: Total Consumption by Flatmate (Pie Chart)
     st.subheader("3. Total Consumption by Flatmate")
