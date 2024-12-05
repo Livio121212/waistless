@@ -4,8 +4,8 @@ import streamlit as st # Create interactive web applications
 from settings_page import setup_flat_name, setup_roommates, settingspage
 from fridge_page import fridge_page
 from barcode_page import barcode_page
-from machlear_page import recipepage
-from recipe_page import authentication, auto_save, delete_account
+from recipe_page import recipepage
+from store_externally import authentication, auto_save, delete_account
 from Overview_page import overview_page
 
 # Initialization of session state variables
