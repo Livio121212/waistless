@@ -29,7 +29,7 @@ def overview_page():
     # Chart 2: Monthly Purchases by Flatmate (Line Chart)
     st.subheader("2. Monthly Purchases by Flatmate")
 
-    # Collect and process purchase data
+    # Step 1: Collect purchase data
     purchases_data = []
     for mate in st.session_state["roommates"]:
         purchases_data.extend([
@@ -39,28 +39,27 @@ def overview_page():
                 "Total": purchase.get("Price", 0)           # Fetch price or use 0
             }
             for purchase in st.session_state["purchases"][mate]
-            if "Date" in purchase and "Price" in purchase  # Ensure both keys exist
         ])
 
-    # Convert purchase data into a DataFrame
+    # Step 2: Create DataFrame
     purchases_df = pd.DataFrame(purchases_data)
 
     if not purchases_df.empty:
-        # Ensure Date is in proper datetime format
+        # Step 3: Convert Date to datetime and clean up
         purchases_df["Date"] = pd.to_datetime(purchases_df["Date"], format="%Y-%m", errors="coerce")
         purchases_df = purchases_df.dropna(subset=["Date"])  # Drop rows with invalid dates
 
-        # Group data by Date and Roommate, summing up total purchases
+        # Step 4: Group by Date and Roommate
         monthly_purchases = purchases_df.groupby(["Date", "Roommate"])["Total"].sum().unstack(fill_value=0)
 
-        # Transform data into a long format suitable for plotting
+        # Step 5: Reshape for Plotly
         monthly_purchases_long = monthly_purchases.reset_index().melt(
             id_vars=["Date"], 
             var_name="Roommate", 
             value_name="Total Purchases (CHF)"
         )
 
-        # Plot the data using Plotly
+        # Step 6: Plot
         if not monthly_purchases_long.empty:
             fig2 = px.line(
                 monthly_purchases_long,
