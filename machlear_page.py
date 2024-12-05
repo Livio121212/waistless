@@ -5,7 +5,7 @@ import numpy as np
 from datetime import datetime
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.preprocessing import StandardScaler
-from store_externally import recipe_ratings 
+
 
 # API configuration
 API_KEY = '7c3d0f2a157542d9a49c93cdf50653a4'
