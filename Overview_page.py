@@ -54,6 +54,8 @@ def overview_page():
         # Debug the DataFrame
         st.write("Final monthly_purchases DataFrame before plotting:", monthly_purchases)
 
+        st.write("Grouped Data (before unstack):", purchases_df.groupby(["Date", "Roommate"])["Total"].sum())
+
         # Check if there's any data to plot
         if not monthly_purchases.empty:
             fig2 = px.line(
