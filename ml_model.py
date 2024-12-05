@@ -1,7 +1,10 @@
 import pandas as pd
 from sklearn.ensemble import RandomForestRegressor
 import streamlit as st
-from .recipe_config import CUISINES
+
+# Available cuisines and taste features
+CUISINES = ["International", "Italian", "Asian", "Mexican", "Mediterranean", "American"]
+TASTE_FEATURES = ["Spicy", "Sweet", "Salty", "Sour", "Bitter", "Umami"]
 
 def train_user_model(user):
     """Train ML model for a specific user based on their ratings"""
