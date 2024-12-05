@@ -41,6 +41,7 @@ def overview_page():
     st.write("Debugging purchases_data:", purchases_data)
 
     purchases_df = pd.DataFrame(purchases_data)
+
     if not purchases_df.empty:
         purchases_df["Date"] = pd.to_datetime(purchases_df["Date"], format= '%Y-%m', errors= "coerce")
         st.write("Formatted purchases_df:", purchases_df)
@@ -54,11 +55,15 @@ def overview_page():
 
         # Check if there's any data to plot
         if not monthly_purchases.empty:
-            st.line_chart(monthly_purchases)
+            monthly_purchases.reset_index(inplace=True)
+            monthly_purchases.set_index('Date', inplace=True)
+            fig2 = px.line(monthly_purchases, x=monthly_purchases.index, y=monthly_purchases.columns,
+                           title="Monthly Purchases by Flatmate")
+            st.plotly_chart(fig2)
         else:
             st.write("No data available for the line chart.")
 
-        st.line_chart(monthly_purchases)
+        
     else:
         st.write("No purchases data available.")
 
