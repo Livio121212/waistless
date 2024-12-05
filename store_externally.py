@@ -6,7 +6,6 @@ from settings_page import setup_flat_name, setup_roommates, settingspage
 from fridge_page import fridge_page
 from barcode_page import barcode_page
 from recipe_page import recipepage
-#from mach_learn import recipepage, recipe_rating und session stat unten eröffnen unten if not vorhanden mit funktion das rating gesaved werden hier ->Function to automatically save flat data
 
 
 # Ensure all session state variables are initialized, just for testing
