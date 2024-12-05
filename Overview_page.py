@@ -49,8 +49,12 @@ def overview_page():
     if not purchases_df.empty:
         # Step 3: Convert Date to datetime
         purchases_df["Date"] = pd.to_datetime(purchases_df["Date"], errors="coerce")  # Parse full datetime
+    
+        # Check if Date parsing works
+        st.write("Parsed DataFrame (Date column):")
+        st.write(purchases_df)
 
-        # Step 4: Filter to include only the current month and year
+        # Step 4: Filter for the current month and year
         current_month = datetime.now().month
         current_year = datetime.now().year
         purchases_df = purchases_df[
@@ -58,15 +62,19 @@ def overview_page():
             (purchases_df["Date"].dt.year == current_year)
         ]
 
-        # Step 5: Group by Date and Roommate (Day-level grouping within the month)
-        daily_purchases = purchases_df.groupby(["Date", "Roommate"])["Total"].sum().unstack(fill_value=0)
+        # Step 5: Group by Day (Date) and Roommate
+        daily_purchases = purchases_df.groupby([purchases_df["Date"].dt.date, "Roommate"])["Total"].sum().unstack(fill_value=0)
 
-        # Step 6: Reshape for Plotly
+        # Step 6: Reshape for Plotly (Convert to long format for Plotly)
         daily_purchases_long = daily_purchases.reset_index().melt(
             id_vars=["Date"], 
             var_name="Roommate", 
             value_name="Total Purchases (CHF)"
         )
+
+        # Check if reshaped data is correct
+        st.write("Reshaped Data for Plotly:")
+        st.write(daily_purchases_long)
 
         # Step 7: Plot
         if not daily_purchases_long.empty:
@@ -83,6 +91,7 @@ def overview_page():
             st.write("No data available for the current month.")
     else:
         st.write("No purchases data available.")
+
 
 
 
