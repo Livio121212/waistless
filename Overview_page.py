@@ -32,8 +32,8 @@ def overview_page():
     for mate in st.session_state["roommates"]:
         purchases_data.extend([
             {"Roommate": mate, 
-             "Date": pd.to_datetime(purchase.get["Date", "1900-01-01"]).strftime('%Y-%m'), 
-             "Total": purchase["Price", 0]}
+             "Date": pd.to_datetime(purchase.get("Date", "1900-01-01")).strftime('%Y-%m'), 
+             "Total": purchase.get("Price", 0)}
             for purchase in st.session_state["purchases"][mate]
             if "Date" in purchase and "Price" in purchase
         ])
