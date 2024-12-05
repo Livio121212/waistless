@@ -12,6 +12,7 @@ if "purchases" not in st.session_state:
 if "consumed" not in st.session_state:
     st.session_state["consumed"] = {mate: [] for mate in st.session_state["roommates"]}
 
+
 # Overview page function
 def overview_page():
     st.title("Flatmate Overview")
@@ -31,15 +32,23 @@ def overview_page():
     for mate in st.session_state["roommates"]:
         purchases_data.extend([
             {"Roommate": mate, 
-             "Date": pd.to_datetime(purchase["Date"]).strftime('%Y-%m'), 
-             "Total": purchase["Price"]}
+             "Date": pd.to_datetime(purchase["Date", "1900-01-01"]).strftime('%Y-%m'), 
+             "Total": purchase["Price", 0]}
             for purchase in st.session_state["purchases"][mate]
+            if "Date" in purchase and "Price" in purchase
         ])
+    # Debugging purchases_data
+    st.write("Debugging purchases_data:", purchases_data)
+
     purchases_df = pd.DataFrame(purchases_data)
     if not purchases_df.empty:
-        purchases_df["Date"] = pd.to_datetime(purchases_df["Date"], format='%Y-%m')
+        purchases_df["Date"] = pd.to_datetime(purchases_df["Date"], format= '%Y-%m', errors= "coerce")
         purchases_df = purchases_df.sort_values("Date")
+        # Group by Date and Roommate, summing prices
         monthly_purchases = purchases_df.groupby(["Date", "Roommate"])["Total"].sum().unstack(fill_value=0)
+        # Debugging grouped data
+        st.write("Debugging monthly_purchases DataFrame:", monthly_purchases)
+        
         st.line_chart(monthly_purchases)
     else:
         st.write("No purchases data available.")
