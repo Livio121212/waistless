@@ -28,9 +28,9 @@ def overview_page():
 
     # Chart 2: Monthly Purchases by Flatmate (Line Chart)
     st.subheader("2. Monthly Purchases by Flatmate")
-    purchases_data = []
+    purchases_data = [] 
     for mate in st.session_state["roommates"]:
-        purchases_data.extend([
+        purchases_data.extend([ 
             {"Roommate": mate, 
              "Date": pd.to_datetime(purchase.get("Date", "1900-01-01")).strftime('%Y-%m'), 
              "Total": purchase.get("Price", 0)}
@@ -54,16 +54,26 @@ def overview_page():
         # Debug the DataFrame
         st.write("Final monthly_purchases DataFrame before plotting:", monthly_purchases)
 
-        st.write("Grouped Data (before unstack):", purchases_df.groupby(["Date", "Roommate"])["Total"].sum())
+        # Convert the data to a long format for Plotly
+        monthly_purchases_long = monthly_purchases.reset_index().melt(
+            id_vars=["Date"], 
+            var_name="Roommate", 
+            value_name="Total Purchases (CHF)"
+        )
 
-        # Check if there's any data to plot
-        if not monthly_purchases.empty:
+        # Debugging long format data
+        st.write("Data for Plotly (long format):", monthly_purchases_long)
+
+        # Plot the line chart using Plotly
+        if not monthly_purchases_long.empty:
             fig2 = px.line(
-                monthly_purchases.reset_index(), 
-                x="Date", 
-                y=monthly_purchases.columns,
+                monthly_purchases_long,
+                x="Date",
+                y="Total Purchases (CHF)",
+                color="Roommate",
                 title="Monthly Purchases by Flatmate",
-                labels={"value": "Total Purchases (CHF)", "Date": "Month"},
+                labels={"Total Purchases (CHF)": "Total Purchases (CHF)", "Date": "Month"},
+                markers=True  # Add markers to enhance readability
             )
             st.plotly_chart(fig2)
         else:
