@@ -32,7 +32,7 @@ def overview_page():
     for mate in st.session_state["roommates"]:
         purchases_data.extend([
             {"Roommate": mate, 
-             "Date": pd.to_datetime(purchase["Date", "1900-01-01"]).strftime('%Y-%m'), 
+             "Date": pd.to_datetime(purchase.get["Date", "1900-01-01"]).strftime('%Y-%m'), 
              "Total": purchase["Price", 0]}
             for purchase in st.session_state["purchases"][mate]
             if "Date" in purchase and "Price" in purchase
@@ -48,7 +48,7 @@ def overview_page():
         monthly_purchases = purchases_df.groupby(["Date", "Roommate"])["Total"].sum().unstack(fill_value=0)
         # Debugging grouped data
         st.write("Debugging monthly_purchases DataFrame:", monthly_purchases)
-        
+
         st.line_chart(monthly_purchases)
     else:
         st.write("No purchases data available.")
