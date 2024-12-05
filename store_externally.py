@@ -5,7 +5,8 @@ from datetime import datetime
 from settings_page import setup_flat_name, setup_roommates, settingspage
 from fridge_page import fridge_page
 from barcode_page import barcode_page
-from recipe_page import recipepage
+#from recipe_page import recipepage
+from machlear_page import recipepage
 
 # Ensure all session state variables are initialized, just for testing
 if "flate_name" not in st.session_state:
