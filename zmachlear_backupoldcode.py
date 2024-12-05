@@ -6,7 +6,6 @@ from datetime import datetime
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.preprocessing import StandardScaler
 
-
 # API configuration
 API_KEY = '7c3d0f2a157542d9a49c93cdf50653a4'
 SPOONACULAR_URL = 'https://api.spoonacular.com/recipes/findByIngredients'
@@ -153,8 +152,6 @@ def rate_recipe(recipe_title, recipe_link, cuisine):
     st.subheader(f"Rate the recipe: {recipe_title}")
     st.write(f"**{recipe_title}**: ([View Recipe]({recipe_link}))")
     rating = st.slider("Rate with stars (1-5):", 1, 5, key=f"rating_{recipe_title}")
-    
-
     
     if st.button("Submit rating"):
         user = st.session_state["selected_user"]
