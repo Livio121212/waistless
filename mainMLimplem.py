@@ -1,4 +1,3 @@
-# Importing necessary libraries and custom modules
 import streamlit as st
 from settings_page import setup_flat_name, setup_roommates, settingspage
 from fridge_page import fridge_page
@@ -6,7 +5,6 @@ from barcode_page import barcode_page
 from machlear_page import recipepage, initialize_session_state
 from store_externally import authentication, auto_save, delete_account
 from Overview_page import overview_page
-from ml_model import CUISINES, TASTE_FEATURES
 
 # Initialization of session state variables
 # Flat related variables
@@ -48,10 +46,6 @@ if "ml_models" not in st.session_state:
     st.session_state["ml_models"] = {}
 if "user_low_rated_recipes" not in st.session_state:
     st.session_state["user_low_rated_recipes"] = {}
-if "cuisine_ratings" not in st.session_state:
-    st.session_state["cuisine_ratings"] = {
-        cuisine: {} for cuisine in CUISINES
-    }
 
 # Login-related variables
 if "logged_in" not in st.session_state:
