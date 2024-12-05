@@ -3,8 +3,8 @@ from settings_page import setup_flat_name, setup_roommates, settingspage
 from fridge_page import fridge_page
 from barcode_page import barcode_page
 from machlear_page import recipepage, initialize_session_state
-from store_externally import authentication, auto_save, delete_account
-from Overview_page import overview_page
+from store_externallyMP import authentication, auto_save, delete_account
+from OverviewML_page import overview_page
 
 # Initialization of session state variables
 # Flat related variables
