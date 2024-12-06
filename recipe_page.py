@@ -1,13 +1,12 @@
 import streamlit as st # Creates app interface
 import requests # To send http requests for API
-import random # Enables random selection
+import random # Enables radom selection
 import pandas as pd # Library to handle data
 from datetime import datetime 
 
 # API-Key and URL for Spoonacular
 API_KEY = '7c3d0f2a157542d9a49c93cdf50653a4' # Unique key to authenticate requests to the Spoonacular API
 SPOONACULAR_URL = 'https://api.spoonacular.com/recipes/findByIngredients' # URL to find recipes
-CLASSIFY_CUISINE_URL = 'https://api.spoonacular.com/recipes/cuisine'  # URL to classify cuisine type
 
 # Initialization of session state variables and examples if nothing in session_state
 if "inventory" not in st.session_state:
@@ -21,7 +20,7 @@ if "inventory" not in st.session_state:
 
 # Initialize more session state variables for roommate and recipe-related data
 if "roommates" not in st.session_state: # Define examples if nothing added
-    st.session_state["roommates"] = ["Bilbo", "Frodo", "Gandalf der Weise"] # Example roommates
+    st.session_state["roommates"] = ["Bilbo", "Frodo", "Gandalf der Weise"] # Example rommates
 if "selected_user" not in st.session_state:
     st.session_state["selected_user"] = None # Keeps track of which user is selected
 if "recipe_suggestions" not in st.session_state:
@@ -52,10 +51,10 @@ def get_recipes_from_inventory(selected_ingredients=None): # Optionally use sele
     }
     response = requests.get(SPOONACULAR_URL, params=params) # Send the HTTP GET request to the API
     
-    if response.status_code == 200: # Checks if response from API was successful
+    if response.status_code == 200: # Checks if response from API was successfull
         recipes = response.json() # Parse the API response into a Python object
         recipe_titles = [] # List to store recipe titles
-        recipe_links = {} # Dictionary to store links, cuisine types, and missing ingredients
+        recipe_links = {} # Dictionary to store links and missing ingredients
         displayed_recipes = 0 # Counter for recipes displayed
 
         random.shuffle(recipes) # Shuffle recipes in a random matter to add variety 
@@ -63,28 +62,15 @@ def get_recipes_from_inventory(selected_ingredients=None): # Optionally use sele
         for recipe in recipes: # Iterate through each recipe
             missed_ingredients = recipe.get("missedIngredientCount", 0) # Number of missing ingredients
             if missed_ingredients <= 2:  # Allow up to 2 missing ingredients
-                # Create a link to the recipe on Spoonacular
+                 # Create a link to the recipe on Spoonacular
                 recipe_link = f"https://spoonacular.com/recipes/{recipe['title'].replace(' ', '-')}-{recipe['id']}" # Builds a link
                 missed_ingredients_names = [item["name"] for item in recipe.get("missedIngredients", [])]
                 
-                # Classify the cuisine type of the recipe using the Spoonacular API
-                cuisine_params = {
-                    "title": recipe['title'],
-                    "ingredientList": ", ".join([ingredient["name"] for ingredient in recipe.get("usedIngredients", [])]),
-                    "apiKey": API_KEY
-                }
-                cuisine_response = requests.post(CLASSIFY_CUISINE_URL, params=cuisine_params)
-                cuisine = "Unknown"
-                if cuisine_response.status_code == 200:
-                    cuisine_data = cuisine_response.json()
-                    cuisine = cuisine_data.get("cuisine", "Unknown")
-                
-                # Add recipe title, link, and cuisine to the lists
+                # Add recipe title and link to the lists
                 recipe_titles.append(recipe['title'])
                 recipe_links[recipe['title']] = {
                     "link": recipe_link,
-                    "missed_ingredients": missed_ingredients_names,
-                    "cuisine": cuisine
+                    "missed_ingredients": missed_ingredients_names
                 }
                 displayed_recipes += 1 # Adds recipe until break
                 
@@ -107,7 +93,7 @@ def rate_recipe(recipe_title, recipe_link):
         if user:
             st.success(f"You have rated '{recipe_title}' with {rating} stars!") # Success message
             st.session_state["cooking_history"].append({ # Creates a "Cookbook" with history of rating
-                "Person": user, # Chosen user - under which rating is stored
+                "Person": user, # Choosen user - under which rating is stored
                 "Recipe": recipe_title,
                 "Rating": rating,
                 "Link": recipe_link,
@@ -140,7 +126,7 @@ def recipepage():
             if search_button:
                 # Call the function to get recipes based on the selected ingredients
                 recipe_titles, recipe_links = get_recipes_from_inventory(selected_ingredients)
-                st.session_state["recipe_suggestions"] = recipe_titles # Store recipe titles
+                st.session_state["recipe_suggestions"] = recipe_titles # Store recipe titel
                 st.session_state["recipe_links"] = recipe_links # Store recipe link
 
         # Display recipe suggestions with links only if they have been generated
@@ -149,10 +135,9 @@ def recipepage():
             for title in st.session_state["recipe_suggestions"]: # Loop through suggested recipes
                 link = st.session_state["recipe_links"][title]["link"]
                 missed_ingredients = st.session_state["recipe_links"][title]["missed_ingredients"]
-                cuisine = st.session_state["recipe_links"][title]["cuisine"]
 
-                # Display the recipe title, cuisine, and link
-                st.write(f"- **{title}** (Cuisine: {cuisine}): ([View Recipe]({link}))")
+                 # Display the recipe title and link
+                st.write(f"- **{title}**: ([View Recipe]({link}))")
                 if missed_ingredients: # Show extra ingredients needed
                     st.write(f"  *Extra ingredients needed:* {', '.join(missed_ingredients)}")
 
