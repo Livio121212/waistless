@@ -3,7 +3,6 @@ import requests # To send http requests for API
 import random # Enables radom selection
 import pandas as pd # Library to handle data
 from datetime import datetime 
-from store_externally import get_user_ratings, save_user_ratings
 
 # API-Key and URL for Spoonacular
 API_KEY = '7c3d0f2a157542d9a49c93cdf50653a4' # Unique key to authenticate requests to the Spoonacular API
@@ -82,40 +81,6 @@ def get_recipes_from_inventory(selected_ingredients=None): # Optionally use sele
         st.error("Error fetching recipes. Please check your API key and try again.") # Warning message for API key
         return [], {}
 
-# Function to categorize recipes by cuisine
-def categorize_by_cuisine(recipes):
-    cuisines = {}
-    for recipe in recipes:
-        cuisine = recipe.get("cuisine", "Unknown")
-        if cuisine not in cuisines:
-            cuisines[cuisine] = []
-        cuisines[cuisine].append(recipe)
-    return cuisines
-
-# Function to get personalized recommendations
-def get_recommendations(user_id, cuisines):
-    user_ratings = get_user_ratings(user_id)
-    mean_ratings = {cuisine: sum(ratings) / len(ratings) for cuisine, ratings in user_ratings.items() if len(ratings) > 0}
-
-    # Sort cuisines by user's mean ratings
-    sorted_cuisines = sorted(mean_ratings, key=mean_ratings.get, reverse=True)
-    recommendations = []
-
-    # Recommend dishes from top-rated cuisines
-    for cuisine in sorted_cuisines:
-        if cuisine in cuisines:
-            recommendations.extend(random.sample(cuisines[cuisine], min(2, len(cuisines[cuisine]))))
-        if len(recommendations) >= 3:
-            break
-
-    # Add one random dish from a cuisine that hasn't been rated yet
-    unrated_cuisines = [cuisine for cuisine in cuisines if cuisine not in user_ratings]
-    if unrated_cuisines:
-        random_cuisine = random.choice(unrated_cuisines)
-        recommendations.append(random.choice(cuisines[random_cuisine]))
-
-    return recommendations[:3]
-
 # Function to let users rate a recipe
 def rate_recipe(recipe_title, recipe_link):
     st.subheader(f"Rate the recipe: {recipe_title}") # Show recipe title
@@ -123,7 +88,7 @@ def rate_recipe(recipe_title, recipe_link):
     # Slider to select a rating from 1 to 5
     rating = st.slider("Rate with stars (1-5):", 1, 5, key=f"rating_{recipe_title}")
     
-    if st.button("Submit rating", key=f"submit_rating_{recipe_title}"): # Button to submit the rating
+    if st.button("Submit rating"): # Button to submit the rating
         user = st.session_state["selected_user"] # Get the selected user
         if user:
             st.success(f"You have rated '{recipe_title}' with {rating} stars!") # Success message
@@ -134,12 +99,11 @@ def rate_recipe(recipe_title, recipe_link):
                 "Link": recipe_link,
                 "Date": datetime.now().strftime("%Y-%m-%d %H:%M:%S") # Timestamp
             })
-            save_user_ratings(user, recipe_title, rating)
         else:
             st.warning("Please select a user first.") # Warning message
 
 # Main function to run the recipe page
-def recipe_page():
+def recipepage():
     st.title("You think you can cook! Better take a recipe!") # Funny titles on page :)
     st.subheader("Delulu is not the solulu")
     
@@ -207,5 +171,4 @@ def recipe_page():
             st.table(pd.DataFrame(history_data)) # Display the history as a table
 
 # Run the recipe page
-if __name__ == "__main__":
-    recipe_page()
+recipepage()
