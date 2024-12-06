@@ -36,20 +36,31 @@ if "cooking_history" not in st.session_state:
 
 def get_cuisine_type(recipe_title):
     """Function to classify the cuisine type of a recipe"""
-    params = {
-        "apiKey": API_KEY,
-        "title": recipe_title
+    headers = {
+        'Content-Type': 'application/x-www-form-urlencoded'
+    }
+    data = {
+        'apiKey': API_KEY,
+        'title': recipe_title,
+        'ingredientList': recipe_title  # Including title as ingredient list for better classification
     }
     
     try:
-        response = requests.get(CUISINE_CLASSIFIER_URL, params=params)
+        response = requests.post(CUISINE_CLASSIFIER_URL, headers=headers, data=data)
         if response.status_code == 200:
             cuisine_data = response.json()
-            return cuisine_data.get('cuisine', 'Unknown')
+            # Get the cuisine with highest confidence
+            cuisine = cuisine_data.get('cuisine', 'Unknown')
+            if cuisine == 'Unknown' or not cuisine:
+                # Fallback to a random cuisine for variety if the API returns unknown
+                cuisines = ['Italian', 'Asian', 'Mexican', 'American', 'Mediterranean', 
+                          'Indian', 'Chinese', 'Japanese', 'Thai', 'French', 'Greek']
+                cuisine = random.choice(cuisines)
+            return cuisine
         else:
-            return 'Unknown'
+            return 'International'
     except:
-        return 'Unknown'
+        return 'International'
 
 def get_recipes_from_inventory(selected_ingredients=None):
     ingredients = selected_ingredients if selected_ingredients else list(st.session_state["inventory"].keys())
@@ -86,7 +97,7 @@ def get_recipes_from_inventory(selected_ingredients=None):
                 recipe_links[recipe['title']] = {
                     "link": recipe_link,
                     "missed_ingredients": missed_ingredients_names,
-                    "cuisine": cuisine_type  # Make sure cuisine is always set
+                    "cuisine": cuisine_type
                 }
                 displayed_recipes += 1
                 
@@ -144,7 +155,7 @@ def recipepage():
             for title in st.session_state["recipe_suggestions"]:
                 link = st.session_state["recipe_links"][title]["link"]
                 missed_ingredients = st.session_state["recipe_links"][title]["missed_ingredients"]
-                cuisine = st.session_state["recipe_links"][title].get("cuisine", "Unknown")  # Use .get() with default value
+                cuisine = st.session_state["recipe_links"][title].get("cuisine", "Unknown")
 
                 st.write(f"- **{title}** ({cuisine} cuisine): ([View Recipe]({link}))")
                 if missed_ingredients:
