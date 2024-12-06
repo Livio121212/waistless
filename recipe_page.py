@@ -5,7 +5,7 @@ import pandas as pd # Library to handle data
 from datetime import datetime 
 
 # API-Key and URL for Spoonacular
-API_KEY = 'e74d2fafabf2a157542d9a49c93cdf50653a4' # Unique key to authenticate requests to the Spoonacular API
+API_KEY = '3d0f2a157542d9a49c93cdf50653a4' # Unique key to authenticate requests to the Spoonacular API
 SPOONACULAR_URL = 'https://api.spoonacular.com/recipes/findByIngredients' # URL to find recipes
 
 # Initialization of session state variables and examples if nothing in session_state
@@ -18,7 +18,7 @@ if "inventory" not in st.session_state:
         "Olive Oil": {"Quantity": 1, "Unit": "liter", "Price": 8.0},
     }
 
-# Initialize more session state variables for roommate and recipe-related data
+# Initialize more session state variables for roommate and recipe-related datac
 if "roommates" not in st.session_state: # Define examples if nothing added
     st.session_state["roommates"] = ["Bilbo", "Frodo", "Gandalf der Weise"] # Example rommates
 if "selected_user" not in st.session_state:
