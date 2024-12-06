@@ -5,7 +5,7 @@ import pandas as pd # Library to handle data
 from datetime import datetime 
 
 # API-Key and URL for Spoonacular
-API_KEY = '7c3d0f2a157542d9a49c93cdf50653a4' # Unique key to authenticate requests to the Spoonacular API
+API_KEY = '53a934cb7ae34e3fa09d08ad0adcaa1d' # Unique key to authenticate requests to the Spoonacular API
 SPOONACULAR_URL = 'https://api.spoonacular.com/recipes/findByIngredients' # URL to find recipes
 
 # Initialization of session state variables and examples if nothing in session_state
