@@ -34,33 +34,68 @@ if "selected_recipe_link" not in st.session_state:
 if "cooking_history" not in st.session_state:
     st.session_state["cooking_history"] = []
 
-def get_cuisine_type(recipe_title):
-    """Function to classify the cuisine type of a recipe"""
+def get_cuisine_type(recipe_title, ingredients_list=""):
+    """Function to classify the cuisine type of a recipe with improved accuracy"""
     headers = {
         'Content-Type': 'application/x-www-form-urlencoded'
     }
+    
+    # Create a more detailed ingredient list for better classification
     data = {
         'apiKey': API_KEY,
         'title': recipe_title,
-        'ingredientList': recipe_title  # Including title as ingredient list for better classification
+        'ingredientList': ingredients_list or recipe_title
     }
+    
+    cuisines = [
+        'Italian', 'Asian', 'Mexican', 'American', 'Mediterranean', 
+        'Indian', 'Chinese', 'Japanese', 'Thai', 'French', 'Greek',
+        'Spanish', 'Korean', 'Vietnamese', 'Middle Eastern'
+    ]
     
     try:
         response = requests.post(CUISINE_CLASSIFIER_URL, headers=headers, data=data)
         if response.status_code == 200:
             cuisine_data = response.json()
-            # Get the cuisine with highest confidence
-            cuisine = cuisine_data.get('cuisine', 'Unknown')
-            if cuisine == 'Unknown' or not cuisine:
-                # Fallback to a random cuisine for variety if the API returns unknown
-                cuisines = ['Italian', 'Asian', 'Mexican', 'American', 'Mediterranean', 
-                          'Indian', 'Chinese', 'Japanese', 'Thai', 'French', 'Greek']
-                cuisine = random.choice(cuisines)
-            return cuisine
-        else:
-            return 'International'
+            cuisine = cuisine_data.get('cuisine', '')
+            confidence = cuisine_data.get('confidence', 0)
+            
+            # If the API returns a valid cuisine with good confidence, use it
+            if cuisine and cuisine != 'Unknown' and confidence > 0.5:
+                return cuisine
+            
+            # If we have ingredients in the title, try to guess the cuisine
+            title_lower = recipe_title.lower()
+            for keyword, cuisine in [
+                (['pasta', 'pizza', 'risotto'], 'Italian'),
+                (['curry', 'masala', 'tikka'], 'Indian'),
+                (['taco', 'burrito', 'enchilada'], 'Mexican'),
+                (['sushi', 'ramen', 'udon'], 'Japanese'),
+                (['pad thai', 'curry'], 'Thai'),
+                (['burger', 'bbq', 'mac and cheese'], 'American'),
+                (['gyro', 'souvlaki', 'moussaka'], 'Greek'),
+                (['paella', 'gazpacho'], 'Spanish'),
+                (['pho', 'banh mi'], 'Vietnamese'),
+                (['kimchi', 'bulgogi'], 'Korean'),
+                (['hummus', 'falafel', 'shawarma'], 'Middle Eastern')
+            ]:
+                if any(k in title_lower for k in keyword):
+                    return cuisine
+            
+            # If we still don't have a cuisine, pick a random one but exclude previously used ones
+            used_cuisines = [
+                recipe.get('cuisine', '') 
+                for recipe in st.session_state.get("recipe_links", {}).values()
+            ]
+            available_cuisines = [c for c in cuisines if c not in used_cuisines]
+            
+            if available_cuisines:
+                return random.choice(available_cuisines)
+            else:
+                return random.choice(cuisines)
     except:
-        return 'International'
+        # If API fails, try to guess from title or return a random cuisine
+        return random.choice(cuisines)
 
 def get_recipes_from_inventory(selected_ingredients=None):
     ingredients = selected_ingredients if selected_ingredients else list(st.session_state["inventory"].keys())
@@ -81,28 +116,38 @@ def get_recipes_from_inventory(selected_ingredients=None):
         recipe_titles = []
         recipe_links = {}
         displayed_recipes = 0
+        used_cuisines = set()
 
         random.shuffle(recipes)
 
         for recipe in recipes:
+            if displayed_recipes >= 3:
+                break
+                
             missed_ingredients = recipe.get("missedIngredientCount", 0)
             if missed_ingredients <= 2:
                 recipe_link = f"https://spoonacular.com/recipes/{recipe['title'].replace(' ', '-')}-{recipe['id']}"
                 missed_ingredients_names = [item["name"] for item in recipe.get("missedIngredients", [])]
                 
-                # Get cuisine type for the recipe
-                cuisine_type = get_cuisine_type(recipe['title'])
+                # Create ingredient list for better cuisine classification
+                all_ingredients = [item["name"] for item in recipe.get("usedIngredients", [])]
+                all_ingredients.extend(missed_ingredients_names)
+                ingredients_list = ", ".join(all_ingredients)
                 
-                recipe_titles.append(recipe['title'])
-                recipe_links[recipe['title']] = {
-                    "link": recipe_link,
-                    "missed_ingredients": missed_ingredients_names,
-                    "cuisine": cuisine_type
-                }
-                displayed_recipes += 1
+                # Get cuisine type with improved accuracy
+                cuisine_type = get_cuisine_type(recipe['title'], ingredients_list)
                 
-                if displayed_recipes >= 3:
-                    break
+                # Only add recipe if we haven't seen this cuisine type yet or we need more recipes
+                if cuisine_type not in used_cuisines or len(used_cuisines) >= 3:
+                    recipe_titles.append(recipe['title'])
+                    recipe_links[recipe['title']] = {
+                        "link": recipe_link,
+                        "missed_ingredients": missed_ingredients_names,
+                        "cuisine": cuisine_type
+                    }
+                    used_cuisines.add(cuisine_type)
+                    displayed_recipes += 1
+                
         return recipe_titles, recipe_links
     else:
         st.error("Error fetching recipes. Please check your API key and try again.")
