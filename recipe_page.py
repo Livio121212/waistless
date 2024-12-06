@@ -1,12 +1,13 @@
 import streamlit as st # Creates app interface
 import requests # To send http requests for API
-import random # Enables radom selection
+import random # Enables random selection
 import pandas as pd # Library to handle data
 from datetime import datetime 
 
 # API-Key and URL for Spoonacular
 API_KEY = '7c3d0f2a157542d9a49c93cdf50653a4' # Unique key to authenticate requests to the Spoonacular API
 SPOONACULAR_URL = 'https://api.spoonacular.com/recipes/findByIngredients' # URL to find recipes
+RECIPE_INFORMATION_URL = 'https://api.spoonacular.com/recipes/{id}/information' # URL to get recipe information including cuisine
 
 # Initialization of session state variables and examples if nothing in session_state
 if "inventory" not in st.session_state:
@@ -20,7 +21,7 @@ if "inventory" not in st.session_state:
 
 # Initialize more session state variables for roommate and recipe-related data
 if "roommates" not in st.session_state: # Define examples if nothing added
-    st.session_state["roommates"] = ["Bilbo", "Frodo", "Gandalf der Weise"] # Example rommates
+    st.session_state["roommates"] = ["Bilbo", "Frodo", "Gandalf der Weise"] # Example roommates
 if "selected_user" not in st.session_state:
     st.session_state["selected_user"] = None # Keeps track of which user is selected
 if "recipe_suggestions" not in st.session_state:
@@ -51,10 +52,10 @@ def get_recipes_from_inventory(selected_ingredients=None): # Optionally use sele
     }
     response = requests.get(SPOONACULAR_URL, params=params) # Send the HTTP GET request to the API
     
-    if response.status_code == 200: # Checks if response from API was successfull
+    if response.status_code == 200: # Checks if response from API was successful
         recipes = response.json() # Parse the API response into a Python object
         recipe_titles = [] # List to store recipe titles
-        recipe_links = {} # Dictionary to store links and missing ingredients
+        recipe_links = {} # Dictionary to store links, missing ingredients, and cuisine info
         displayed_recipes = 0 # Counter for recipes displayed
 
         random.shuffle(recipes) # Shuffle recipes in a random matter to add variety 
@@ -66,11 +67,20 @@ def get_recipes_from_inventory(selected_ingredients=None): # Optionally use sele
                 recipe_link = f"https://spoonacular.com/recipes/{recipe['title'].replace(' ', '-')}-{recipe['id']}" # Builds a link
                 missed_ingredients_names = [item["name"] for item in recipe.get("missedIngredients", [])]
                 
+                # Fetch recipe information to get cuisine
+                recipe_info_response = requests.get(RECIPE_INFORMATION_URL.format(id=recipe['id']), params={"apiKey": API_KEY})
+                if recipe_info_response.status_code == 200:
+                    recipe_info = recipe_info_response.json()
+                    cuisine_info = recipe_info.get("cuisines", [])
+                else:
+                    cuisine_info = []
+                
                 # Add recipe title and link to the lists
                 recipe_titles.append(recipe['title'])
                 recipe_links[recipe['title']] = {
                     "link": recipe_link,
-                    "missed_ingredients": missed_ingredients_names
+                    "missed_ingredients": missed_ingredients_names,
+                    "cuisines": cuisine_info
                 }
                 displayed_recipes += 1 # Adds recipe until break
                 
@@ -93,7 +103,7 @@ def rate_recipe(recipe_title, recipe_link):
         if user:
             st.success(f"You have rated '{recipe_title}' with {rating} stars!") # Success message
             st.session_state["cooking_history"].append({ # Creates a "Cookbook" with history of rating
-                "Person": user, # Choosen user - under which rating is stored
+                "Person": user, # Chosen user - under which rating is stored
                 "Recipe": recipe_title,
                 "Rating": rating,
                 "Link": recipe_link,
@@ -126,7 +136,7 @@ def recipepage():
             if search_button:
                 # Call the function to get recipes based on the selected ingredients
                 recipe_titles, recipe_links = get_recipes_from_inventory(selected_ingredients)
-                st.session_state["recipe_suggestions"] = recipe_titles # Store recipe titel
+                st.session_state["recipe_suggestions"] = recipe_titles # Store recipe title
                 st.session_state["recipe_links"] = recipe_links # Store recipe link
 
         # Display recipe suggestions with links only if they have been generated
@@ -135,11 +145,14 @@ def recipepage():
             for title in st.session_state["recipe_suggestions"]: # Loop through suggested recipes
                 link = st.session_state["recipe_links"][title]["link"]
                 missed_ingredients = st.session_state["recipe_links"][title]["missed_ingredients"]
+                cuisines = st.session_state["recipe_links"][title]["cuisines"]
 
-                 # Display the recipe title and link
+                 # Display the recipe title, link, and cuisine info
                 st.write(f"- **{title}**: ([View Recipe]({link}))")
                 if missed_ingredients: # Show extra ingredients needed
                     st.write(f"  *Extra ingredients needed:* {', '.join(missed_ingredients)}")
+                if cuisines:
+                    st.write(f"  *Cuisine:* {', '.join(cuisines)}")
 
             # Let the user choose one recipe to make
             selected_recipe = st.selectbox("Select a recipe to cook", ["Please choose..."] + st.session_state["recipe_suggestions"])
@@ -172,3 +185,4 @@ def recipepage():
 
 # Run the recipe page
 recipepage()
+
