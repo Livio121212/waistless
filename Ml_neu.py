@@ -1,86 +1,122 @@
+import streamlit as st
 import pandas as pd
 import numpy as np
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.preprocessing import LabelEncoder
+from datetime import datetime
 import os
 import json
 
-# Funktion, um Benutzerdaten aus einer JSON-Datei zu laden
+# Load or initialize user-specific data
 def load_user_data(username):
-    """Lädt die JSON-Daten eines Benutzers."""
     user_file = f"{username}_data.json"
     if os.path.exists(user_file):
         with open(user_file, "r") as file:
             return json.load(file)
-    return {"cooking_history": [], "ml_models": {}}
+    return {"cooking_history": [], "ml_model": None}
 
-# Funktion, um Benutzerdaten in einer JSON-Datei zu speichern
 def save_user_data(username, data):
-    """Speichert Benutzerdaten in einer JSON-Datei."""
     user_file = f"{username}_data.json"
     with open(user_file, "w") as file:
         json.dump(data, file)
 
-# Funktion zum Trainieren eines benutzerdefinierten Modells
-def train_user_model(user):
-    """
-    Trainiert ein Machine-Learning-Modell für den angegebenen Benutzer basierend auf seiner Kochhistorie.
-    """
-    user_data = load_user_data(user)
+# Train a personalized machine learning model
+def train_user_model(username):
+    user_data = load_user_data(username)
     cooking_history = user_data.get("cooking_history", [])
 
-    if len(cooking_history) < 3:  # Mindestens 3 Bewertungen erforderlich
-        return None, None
+    if len(cooking_history) < 3:  # Minimum data for training
+        return None
 
-    # Daten vorbereiten
-    user_df = pd.DataFrame(cooking_history)
-    X = user_df["Recipe"]
-    y = user_df["Rating"]
+    # Prepare data
+    df = pd.DataFrame(cooking_history)
+    X = df["Recipe"]
+    y = df["Rating"]
 
-    # LabelEncoder für Rezeptnamen
+    # Encode recipe names
     encoder = LabelEncoder()
     X_encoded = encoder.fit_transform(X).reshape(-1, 1)
 
-    # Modelltraining
+    # Train model
     model = RandomForestRegressor(n_estimators=100, random_state=42)
     model.fit(X_encoded, y)
 
-    # Modelle und Encoder speichern
-    user_data["ml_models"] = {"model": model, "encoder": encoder}
-    save_user_data(user, user_data)
+    # Save model and encoder
+    user_data["ml_model"] = {"model": model, "encoder": encoder.classes_.tolist()}
+    save_user_data(username, user_data)
 
     return model, encoder
 
-# Funktion, um Rezeptbewertungen vorherzusagen
-def predict_recipe_score(user, recipe):
-    """
-    Gibt eine vorhergesagte Bewertung für ein Rezept zurück, basierend auf dem Modell des Benutzers.
-    """
-    user_data = load_user_data(user)
-    ml_models = user_data.get("ml_models", {})
-    
-    model = ml_models.get("model")
-    encoder = ml_models.get("encoder")
+# Predict rating for a recipe
+def predict_recipe_score(username, recipe):
+    user_data = load_user_data(username)
+    ml_model = user_data.get("ml_model")
 
-    if not model or not encoder:
-        return np.random.uniform(3, 5)  # Zufällige Bewertung, wenn kein Modell verfügbar ist
+    if not ml_model:
+        return np.random.uniform(3, 5)  # Default random score if no model
 
-    # Rezept codieren und Vorhersage treffen
+    model = RandomForestRegressor()
+    model.fit([[0]], [0])  # Dummy fit (needed to create the model object)
+    model.__setstate__(ml_model["model"])  # Load saved model
+    encoder = LabelEncoder()
+    encoder.classes_ = np.array(ml_model["encoder"])  # Load saved encoder classes
+
     try:
         recipe_encoded = encoder.transform([recipe]).reshape(-1, 1)
         predicted_score = model.predict(recipe_encoded)
-        return np.clip(predicted_score[0], 1, 5)  # Bewertung auf Bereich 1-5 begrenzen
+        return np.clip(predicted_score[0], 1, 5)  # Clip between 1 and 5
     except:
-        return np.random.uniform(3, 5)  # Zufallsbewertung bei unbekanntem Rezept
+        return np.random.uniform(3, 5)
 
-# Funktion, um Rezeptvorschläge zu erstellen
-def suggest_recipes(user, available_recipes):
-    """
-    Empfiehlt die besten Rezepte basierend auf vorhergesagten Bewertungen.
-    """
+# Suggest recipes based on predictions
+def suggest_recipes(username, available_recipes):
     suggestions = []
     for recipe in available_recipes:
-        score = predict_recipe_score(user, recipe)
+        score = predict_recipe_score(username, recipe)
         suggestions.append((recipe, score))
-    suggestions.sort(key=lambda x: x[1], reverse=True)  # Nach Bewertung sortieren
-    return suggestions[:5]  # Top-5-Vorschläge
+    return sorted(suggestions, key=lambda x: x[1], reverse=True)[:5]
+
+# Recipe page
+def recipepage():
+    st.title("Recipe Recommendations")
+
+    if "username" not in st.session_state or not st.session_state["username"]:
+        st.warning("Please log in to see personalized recommendations.")
+        return
+
+    username = st.session_state["username"]
+
+    # Example available recipes
+    available_recipes = ["Pasta Carbonara", "Veggie Bowl", "Pumpkin Soup", "Pizza Margherita", "Ratatouille"]
+
+    # Train model (if data exists)
+    train_user_model(username)
+
+    # Get suggestions
+    suggestions = suggest_recipes(username, available_recipes)
+
+    st.subheader("Recommended Recipes")
+    for recipe, score in suggestions:
+        st.write(f"**{recipe}** - Predicted Rating: {score:.1f}")
+
+    # Rating input
+    st.subheader("Rate a Recipe")
+    selected_recipe = st.selectbox("Choose a recipe:", ["Select"] + available_recipes)
+    rating = st.slider("Rate the recipe (1-5):", 1, 5, 3)
+
+    if st.button("Submit Rating"):
+        if selected_recipe != "Select":
+            cooking_history = load_user_data(username).get("cooking_history", [])
+            cooking_history.append({
+                "Recipe": selected_recipe,
+                "Rating": rating,
+                "Date": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            })
+            user_data = load_user_data(username)
+            user_data["cooking_history"] = cooking_history
+            save_user_data(username, user_data)
+
+            st.success(f"Rated '{selected_recipe}' with {rating} stars.")
+            train_user_model(username)  # Retrain model with new data
+        else:
+            st.warning("Please select a recipe to rate.")
