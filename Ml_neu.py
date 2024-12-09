@@ -1,10 +1,10 @@
+import streamlit as st
+import json
+import os
 import pandas as pd
-import numpy as np
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.preprocessing import LabelEncoder
-import streamlit as st
-import os
-import json
+import numpy as np
 
 # Funktion, um Benutzerdaten aus einer JSON-Datei zu laden
 def load_user_data(username):
@@ -24,9 +24,7 @@ def save_user_data(username, data):
 
 # Funktion zum Trainieren eines benutzerdefinierten Modells
 def train_user_model(user):
-    """
-    Trainiert ein Machine-Learning-Modell für den angegebenen Benutzer basierend auf seiner Kochhistorie.
-    """
+    """Trainiert ein Modell basierend auf der Kochhistorie des Benutzers."""
     user_data = load_user_data(user)
     cooking_history = user_data.get("cooking_history", [])
 
@@ -54,54 +52,48 @@ def train_user_model(user):
 
 # Funktion, um Rezeptbewertungen vorherzusagen
 def predict_recipe_score(user, recipe):
-    """
-    Gibt eine vorhergesagte Bewertung für ein Rezept zurück, basierend auf dem Modell des Benutzers.
-    """
+    """Gibt eine Bewertung für ein Rezept basierend auf dem Modell des Benutzers zurück."""
     user_data = load_user_data(user)
     ml_models = user_data.get("ml_models", {})
-    
+
     model = ml_models.get("model")
     encoder = ml_models.get("encoder")
 
     if not model or not encoder:
-        return np.random.uniform(3, 5)  # Zufällige Bewertung, wenn kein Modell verfügbar ist
+        return np.random.uniform(3, 5)  # Zufallsbewertung, wenn kein Modell verfügbar ist
 
-    # Rezept codieren und Vorhersage treffen
     try:
         recipe_encoded = encoder.transform([recipe]).reshape(-1, 1)
         predicted_score = model.predict(recipe_encoded)
-        return np.clip(predicted_score[0], 1, 5)  # Bewertung auf Bereich 1-5 begrenzen
+        return np.clip(predicted_score[0], 1, 5)
     except:
-        return np.random.uniform(3, 5)  # Zufallsbewertung bei unbekanntem Rezept
+        return np.random.uniform(3, 5)
 
 # Funktion, um Rezeptvorschläge zu erstellen
 def suggest_recipes(user, available_recipes):
-    """
-    Empfiehlt die besten Rezepte basierend auf vorhergesagten Bewertungen.
-    """
+    """Empfiehlt die besten Rezepte basierend auf vorhergesagten Bewertungen."""
     suggestions = []
     for recipe in available_recipes:
         score = predict_recipe_score(user, recipe)
         suggestions.append((recipe, score))
     suggestions.sort(key=lambda x: x[1], reverse=True)  # Nach Bewertung sortieren
-    return suggestions[:5]  # Top-5-Vorschläge
+    return suggestions[:5]
 
-# Integration mit der Rezeptseite
+# Funktion für die Rezeptseite
 def recipepage():
     st.title("Rezeptvorschläge")
 
-    # Sicherstellen, dass ein Benutzer angemeldet ist
     if "logged_in" in st.session_state and st.session_state["logged_in"]:
         user = st.session_state["username"]
 
-        # Lade vorhandene Benutzerdaten
+        # Benutzerdaten laden
         user_data = load_user_data(user)
         st.session_state["cooking_history"] = user_data.get("cooking_history", [])
 
-        # Beispielrezepte (normalerweise aus der Spoonacular-API geladen)
+        # Beispielrezepte
         available_recipes = ["Pasta Carbonara", "Vegane Bowl", "Kürbissuppe", "Pizza Margherita", "Ratatouille"]
 
-        # Vorschläge generieren
+        # Rezeptvorschläge generieren
         suggestions = suggest_recipes(user, available_recipes)
 
         st.subheader("Empfohlene Rezepte:")
@@ -112,10 +104,9 @@ def recipepage():
         st.subheader("Bewerte ein Rezept:")
         selected_recipe = st.selectbox("Wähle ein Rezept aus:", ["Bitte wählen..."] + available_recipes)
         rating = st.slider("Bewertung (1-5):", 1, 5, 3)
-        
+
         if st.button("Bewertung speichern"):
             if selected_recipe != "Bitte wählen...":
-                # Kochhistorie aktualisieren
                 st.session_state["cooking_history"].append({
                     "Recipe": selected_recipe,
                     "Rating": rating
@@ -123,13 +114,31 @@ def recipepage():
                 user_data["cooking_history"] = st.session_state["cooking_history"]
                 save_user_data(user, user_data)
                 st.success(f"Rezept '{selected_recipe}' mit {rating} Sternen bewertet!")
-                # Modell neu trainieren
                 train_user_model(user)
             else:
                 st.warning("Bitte wähle ein Rezept aus.")
     else:
         st.warning("Bitte melde dich an, um Vorschläge zu erhalten.")
 
-# Rezeptseite aufrufen
-if st.session_state.get("logged_in", False):
-    recipepage()
+# Debugging: Anzeigen des Session State
+def debug_session_state():
+    st.sidebar.subheader("Session State Debugging")
+    if st.sidebar.checkbox("Zeige Session State"):
+        st.write(st.session_state)
+
+# Hauptlogik für die App
+if "logged_in" not in st.session_state:
+    st.session_state["logged_in"] = False
+if "username" not in st.session_state:
+    st.session_state["username"] = None
+
+# Navigation hinzufügen
+st.sidebar.title("Navigation")
+if st.session_state["logged_in"]:
+    page = st.sidebar.radio("Seiten", ["Rezepte", "Debugging"])
+    if page == "Rezepte":
+        recipepage()
+    elif page == "Debugging":
+        debug_session_state()
+else:
+    st.title("Bitte logge dich ein.")
